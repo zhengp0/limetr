@@ -1,8 +1,9 @@
 # test function dot
 
+
 def utils_varmat_dot():
     import numpy as np
-    from pynlme.utils import VarMat
+    from limetr.utils import VarMat
 
     ok = True
     # setup test problem

@@ -2,7 +2,7 @@
 
 def utils_varmat_logDet():
     import numpy as np
-    from pynlme.utils import VarMat
+    from limetr.utils import VarMat
 
     ok = True
     # setup test problem

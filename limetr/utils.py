@@ -1,7 +1,7 @@
 # utility classes and functions
 import numpy as np
 from scipy.linalg import block_diag
-from pynlme.futils import varmat
+from limetr.futils import varmat
 
 
 class VarMat:

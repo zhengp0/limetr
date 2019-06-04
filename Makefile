@@ -1,5 +1,5 @@
 # make file for pynlme class
 
 clean:
-	find . -name "__pycache__" -exec rm -rf "{}" \;
-	find . -name "*.so" -delete
+	find . -name "*.so*" | xargs rm -rf
+	find . -name "__pycache__" | xargs rm -rf
