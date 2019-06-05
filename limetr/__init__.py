@@ -29,6 +29,13 @@ class LimeTr:
         self.S = S
         self.V = S**2
 
+        # if z for each study is rank 1
+        self.z_rank_1 = (Z.shape[0] == self.m)
+        if self.z_rank_1:
+            self.Z_full = np.repeat(Z, n, axis=0)
+        else:
+            self.Z_full = Z
+
         # pass in the priors
         self.use_lin_uprior = (lin_uprior_val is not None)
         self.use_lin_gprior = (lin_gprior_val is not None)
@@ -67,7 +74,10 @@ class LimeTr:
     def check(self):
         assert self.Y.shape == (self.N,)
         assert self.S.shape == (self.N,)
-        assert self.Z.shape == (self.N, self.k_gamma)
+        if self.z_rank_1:
+            assert self.Z.shape == (self.m, self.k_gamma)
+        else:
+            assert self.Z.shape == (self.N, self.k_gamma)
         assert np.all(self.S > 0.0)
 
         if self.use_lin_uprior:
@@ -115,13 +125,13 @@ class LimeTr:
         # add gpriors
         if self.use_lin_gprior:
             val += 0.5*np.sum(
-                ((self.lin_gprior_mat.dot(x) - self.lin_gprior_val[0])/
+                ((self.lin_gprior_mat.dot(x) - self.lin_gprior_val[0]) /
                  self.lin_gprior_val[1])**2
                 )
 
         if self.use_dir_gprior:
             val += 0.5*np.sum(
-                ((x - self.dir_gprior_val[0])/self.dir_gprior_val[1])**2
+                ((x - self.dir_gprior_val[0]) / self.dir_gprior_val[1])**2
                 )
 
         return val
@@ -150,15 +160,15 @@ class LimeTr:
         g_beta = -self.JF(beta).T.dot(D.invDot(R))
 
         # gradient for gamma
-        DZ = D.invDot(self.Z)
-        g_gamma = 0.5*np.sum(self.Z*DZ, axis=0) - 0.5*np.sum(
+        DZ = D.invDot(self.Z_full)
+
+        g_gamma = 0.5*np.sum(self.Z_full*DZ, axis=0) - 0.5*np.sum(
             np.add.reduceat(DZ.T*R, self.idx_split, axis=1)**2,
             axis=1)
 
         g = np.hstack((g_beta, g_gamma))
 
         return g
-
 
     def optimize(self, x0=None, print_level=0, max_iter=100):
         if x0 is None:
@@ -184,7 +194,6 @@ class LimeTr:
                 lb=self.dir_uprior_val[0],
                 ub=self.dir_uprior_val[1]
                 )
-
 
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)

@@ -8,7 +8,7 @@ def limetr_objective():
     # setup test problem
     # -------------------------------------------------------------------------
     model = LimeTr.testProblem()
-    tol = 1e-10
+    tol = 1e-8
 
     # test the dot product with vector
     # -------------------------------------------------------------------------

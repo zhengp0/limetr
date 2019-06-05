@@ -119,6 +119,129 @@ FUNCTION logdet(v, Z, d, study_sizes, m, n, k) RESULT(val)
 
 END FUNCTION logdet
 
+
+! special case when Z for each study is rank 1
+! -----------------------------------------------------------------------------
+FUNCTION dot_mv_rank_1(v, Z, d, study_sizes, x, m, n, k) RESULT(y)
+    IMPLICIT NONE
+    INTEGER(8), INTENT(IN) :: m, n, k
+    REAL(8), INTENT(IN) :: v(n), Z(m, k), d(k), x(n)
+    INTEGER(8), INTENT(IN) :: study_sizes(m)
+    REAL(8) :: y(n), t
+    INTEGER(8) :: a, b, i
+
+    y = v*x
+    a = 1
+    b = 0
+    DO i = 1, m
+        b = b + study_sizes(i)
+        t = SUM(Z(i, :)**2*d)
+        y(a:b) = y(a:b) + t*SUM(x(a:b))
+        a = a + study_sizes(i)
+    END DO
+
+END FUNCTION dot_mv_rank_1
+
+
+FUNCTION dot_mm_rank_1(v, Z, d, study_sizes, X, m, n, k, l) RESULT(Y)
+    IMPLICIT NONE
+    INTEGER(8), INTENT(IN) :: m, n, k, l
+    REAL(8), INTENT(IN) :: v(n), Z(m, k), d(k), X(n, l)
+    INTEGER(8), INTENT(IN) :: study_sizes(m)
+    REAL(8) :: Y(n, l), t
+    INTEGER(8) :: a, b, i, j
+
+    DO j = 1, l
+        Y(:, j) = X(:, j)*v
+    END DO
+
+    a = 1
+    b = 0
+    DO i = 1, m
+        b = b + study_sizes(i)
+        t = SUM(Z(i, :)**2*d)
+        DO j = 1, l
+            Y(a:b, j) = Y(a:b, j) + t*SUM(X(a:b, j))
+        END DO
+        a = a + study_sizes(i)
+    END DO
+
+END FUNCTION dot_mm_rank_1
+
+
+FUNCTION invdot_mv_rank_1(v, Z, d, study_sizes, x, m, n, k) RESULT(y)
+    IMPLICIT NONE
+    INTEGER(8), INTENT(IN) :: m, n, k
+    REAL(8), INTENT(IN) :: v(n), Z(m, k), d(k), x(n)
+    INTEGER(8), INTENT(IN) :: study_sizes(m)
+    REAL(8) :: y(n), w(n), t, s
+    INTEGER(8) :: a, b, i
+
+    w = 1.D0/v
+    y = x*w
+    a = 1
+    b = 0
+    DO i = 1, m
+        b = b + study_sizes(i)
+        t = SUM(Z(i, :)**2*d)
+        s = t/(1.D0 + t*SUM(w(a:b)))
+        y(a:b) = y(a:b) - w(a:b)*(s*DOT_PRODUCT(w(a:b), x(a:b)))
+        a = a + study_sizes(i)
+    END DO
+
+END FUNCTION invdot_mv_rank_1
+
+
+FUNCTION invdot_mm_rank_1(v, Z, d, study_sizes, X, m, n, k, l) RESULT(Y)
+    IMPLICIT NONE
+    INTEGER(8), INTENT(IN) :: m, n, k, l
+    REAL(8), INTENT(IN) :: v(n), Z(m, k), d(k), X(n, l)
+    INTEGER(8), INTENT(IN) :: study_sizes(m)
+    REAL(8) :: Y(n, l), w(n), t, s
+    INTEGER(8) :: a, b, i, j
+
+    w = 1.D0/v
+
+    DO j = 1, l
+        Y(:, j) = X(:, j)*w
+    END DO
+
+    a = 1
+    b = 0
+    DO i = 1, m
+        b = b + study_sizes(i)
+        t = SUM(Z(i, :)**2*d)
+        s = t/(1.D0 + t*SUM(w(a:b)))
+        DO j = 1, l
+            Y(a:b, j) = Y(a:b, j) - w(a:b)*(s*DOT_PRODUCT(w(a:b), X(a:b, j)))
+        END DO
+        a = a + study_sizes(i)
+    END DO
+
+END FUNCTION invdot_mm_rank_1
+
+
+FUNCTION logdet_rank_1(v, Z, d, study_sizes, m, n, k) RESULT(val)
+    IMPLICIT NONE
+    INTEGER(8), INTENT(IN) :: m, n, k
+    REAL(8), INTENT(IN) :: v(n), Z(m,k), d(k)
+    INTEGER(8), INTENT(IN) :: study_sizes(m)
+    REAL(8) :: val, t
+    INTEGER(8) :: a, b, i
+
+    val = SUM(LOG(v))
+    a = 1
+    b = 0
+    DO i = 1, m
+        b = b + study_sizes(i)
+        t = SUM(Z(i, :)**2*d)
+        val = val + LOG(1.D0 + t*SUM(1.D0/v(a:b)))
+        a = a + study_sizes(i)
+    END DO
+
+END FUNCTION logdet_rank_1
+
+
 ! private SUBROUTINEs
 ! -----------------------------------------------------------------------------
 SUBROUTINE block_dot_mv(v, Z, d, x, y, n, k)
