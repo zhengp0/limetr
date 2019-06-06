@@ -18,7 +18,9 @@ def run_test(name):
 
 fun_list = [
     'limetr_objective',
-    'limetr_gradient'
+    'limetr_gradient',
+    'limetr_objectiveTrimming',
+    'limetr_gradientTrimming'
 ]
 
 error_count = 0

@@ -1,26 +1,26 @@
-# test function gradient
+# test function gradientTrimming
 
-def limetr_gradient():
+def limetr_gradientTrimming():
     import numpy as np
     from limetr.__init__ import LimeTr
 
     ok = True
     # setup test problem
     # -------------------------------------------------------------------------
-    model = LimeTr.testProblem(use_constraints=True,
-                               use_regularizer=True,
-                               use_uprior=True,
-                               use_gprior=True)
+    model = LimeTr.testProblem(use_trimming=True)
 
-    tol = 1e-6
+    # decouple all the studies
+    model.n = np.array([1]*model.N)
 
-    # test the gradient
+    tol = 1e-8
+
+    # test gradientTrimming
     # -------------------------------------------------------------------------
-    x = np.random.randn(model.k)
-    x[model.idx_gamma] = 0.1
+    x = np.hstack((model.beta, model.gamma))
+    w = model.w
 
-    tr_grad = model.gradient(x, use_ad=True)
-    my_grad = model.gradient(x)
+    tr_grad = model.gradientTrimming(w, use_ad=True)
+    my_grad = model.gradientTrimming(w)
 
     err = np.linalg.norm(tr_grad - my_grad)
     ok = ok and err < tol

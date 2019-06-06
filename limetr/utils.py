@@ -2,6 +2,7 @@
 import numpy as np
 from scipy.linalg import block_diag
 from limetr.futils import varmat
+from scipy.optimize import bisect
 
 
 class VarMat:
@@ -169,3 +170,15 @@ class VarMat:
     @staticmethod
     def _blockInvVarMat(v, z, gamma):
         return np.linalg.inv(np.diag(v) + (z*gamma).dot(z.T))
+
+
+def projCappedSimplex(self, w, w_sum):
+    a = np.min(w) - 1.0
+    b = np.max(w) - 0.0
+
+    def f(x):
+        return np.sum(np.maximum(np.minimum(w - x, 1.0), 0.0)) - w_sum
+
+    x = bisect(f, a, b)
+
+    return np.maximum(np.minimum(w - x, 1.0), 0.0)

@@ -1,26 +1,26 @@
-# test function objective
+# test function objectiveTrimming
 
-def limetr_objective():
+def limetr_objectiveTrimming():
     import numpy as np
     from limetr.__init__ import LimeTr
 
     ok = True
     # setup test problem
     # -------------------------------------------------------------------------
-    model = LimeTr.testProblem(use_constraints=True,
-                               use_regularizer=True,
-                               use_uprior=True,
-                               use_gprior=True)
+    model = LimeTr.testProblem(use_trimming=True)
+
+    # decouple all the studies
+    model.n = np.array([1]*model.N)
 
     tol = 1e-8
 
-    # test objective
+    # test objectiveTrimming
     # -------------------------------------------------------------------------
-    x = np.random.randn(model.k)
-    x[model.idx_gamma] = 0.1
+    x = np.hstack((model.beta, model.gamma))
+    w = model.w
 
     tr_obj = model.objective(x, use_ad=True)
-    my_obj = model.objective(x)
+    my_obj = model.objectiveTrimming(w)
 
     err = np.abs(tr_obj - my_obj)
     ok = ok and err < tol
