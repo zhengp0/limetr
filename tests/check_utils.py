@@ -20,7 +20,8 @@ def run_test(name):
 fun_list = [
     'utils_varmat_dot',
     'utils_varmat_invDot',
-    'utils_varmat_logDet'
+    'utils_varmat_logDet',
+    'utils_projCappedSimplex'
 ]
 
 error_count = 0

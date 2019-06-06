@@ -172,7 +172,7 @@ class VarMat:
         return np.linalg.inv(np.diag(v) + (z*gamma).dot(z.T))
 
 
-def projCappedSimplex(self, w, w_sum):
+def projCappedSimplex(w, w_sum):
     a = np.min(w) - 1.0
     b = np.max(w) - 0.0
 
