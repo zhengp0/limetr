@@ -289,8 +289,27 @@ class LimeTr:
 
             return self.beta, self.gamma, self.w
 
+        self.soln = x0
+
         num_iter = 0
         err = outer_tol + 1.0
+
+        while err >= tol:
+            self.optimize(x0=self.soln,
+                          print_level=inner_print_level,
+                          max_iter=inner_max_iter)
+            w_new = projCappedSimplex(
+                        self.w - outer_step_size*self.gradientTrimming(self.w))
+
+            err = np.linalg.norm(w_new - self.w)/outer_step_size
+            np.copyto(self.w, w_new)
+
+            num_iter += 1
+            if num_iter >= outer_max_iter:
+                print('reach max outer iter')
+                break
+
+        return self.beta, self.gamma, self.w
 
     @classmethod
     def testProblem(cls,
