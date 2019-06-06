@@ -6,9 +6,8 @@ from limetr.utils import VarMat
 
 class LimeTr:
     def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z, S,
-                 lin_uprior_mat=None, lin_gprior_mat=None,
-                 lin_uprior_val=None, lin_gprior_val=None,
-                 dir_uprior_val=None, dir_gprior_val=None):
+                 C=None, JC=None, c=None, H=None, JH=None, h=None,
+                 uprior=None, gprior=None):
         # pass in the dimension
         self.n = np.array(n)
         self.m = len(n)
@@ -37,36 +36,42 @@ class LimeTr:
             self.Z_full = Z
 
         # pass in the priors
-        self.use_lin_uprior = (lin_uprior_val is not None)
-        self.use_lin_gprior = (lin_gprior_val is not None)
-        self.use_dir_uprior = (dir_uprior_val is not None)
-        self.use_dir_gprior = (dir_gprior_val is not None)
+        self.use_constraints = (C is not None)
+        self.use_regularizer = (H is not None)
+        self.use_uprior = (uprior is not None)
+        self.use_gprior = (gprior is not None)
 
-        if self.use_lin_uprior:
-            self.lin_uprior_mat = lin_uprior_mat
-            self.lin_uprior_val = lin_uprior_val
-            self.num_lin_uprior = lin_uprior_mat.shape[0]
+        if self.use_constraints:
+            self.constraints = C
+            self.jacobian = JC
+            self.num_constraints = C(np.zeros(self.k)).size
+            self.cl = c[0]
+            self.cu = c[1]
         else:
-            self.num_lin_uprior = 0
+            self.num_constraints = 0
+            self.cl = None
+            self.cu = None
 
-        if self.use_lin_gprior:
-            self.lin_gprior_mat = lin_gprior_mat
-            self.lin_gprior_val = lin_gprior_val
-            self.num_lin_gprior = lin_gprior_mat.shape[0]
-        else:
-            self.num_lin_gprior = 0
+        if self.use_regularizer:
+            self.h = h
+            self.H = H
+            self.JH = JH
+            self.num_regularizer = H(np.zeros(self.k)).size
 
-        if self.use_dir_uprior:
-            self.dir_uprior_val = dir_uprior_val
+        if self.use_uprior:
+            self.uprior = uprior
         else:
-            self.dir_uprior_val = np.array([
+            self.uprior = np.array([
                 [-np.inf]*self.k_beta + [0.0]*self.k_gamma,
                 [np.inf]*self.k_beta + [np.inf]*self.k_gamma
                 ])
-            self.use_dir_uprior = True
+            self.use_uprior = True
 
-        if self.use_dir_gprior:
-            self.dir_gprior_val = dir_gprior_val
+        self.lb = self.uprior[0]
+        self.ub = self.uprior[1]
+
+        if self.use_gprior:
+            self.gprior = gprior
 
         # check the input
         self.check()
@@ -80,24 +85,19 @@ class LimeTr:
             assert self.Z.shape == (self.N, self.k_gamma)
         assert np.all(self.S > 0.0)
 
-        if self.use_lin_uprior:
-            assert self.lin_uprior_mat.shape == (self.num_lin_uprior, self.k)
-            assert self.lin_uprior_val.shape == (2, self.num_lin_uprior)
-            assert np.all(self.lin_uprior_val[0] <= self.lin_uprior_val[1])
+        if self.use_constraints:
+            assert np.all(self.cl[0] <= self.cu[1])
 
-        if self.use_lin_gprior:
-            assert self.lin_gprior_mat.shape == (self.num_lin_gprior, self.k)
-            assert self.lin_gprior_val.shape == (2, self.num_lin_gprior)
-            assert np.all(self.lin_gprior_val[1] > 0.0)
+        if self.use_regularizer:
+            assert self.h.shape == (2, self.num_regularizer)
+            assert np.all(self.h[1] > 0.0)
 
-        if self.use_dir_uprior:
-            assert self.dir_uprior_val.shape == (2, self.k)
-            assert np.all(self.dir_uprior_val[0] <= self.dir_uprior_val[1])
-            assert np.all(self.dir_uprior_val[0, self.idx_gamma] >= 0.0)
+        if self.use_uprior:
+            assert np.all(self.lb <= self.ub)
 
-        if self.use_dir_gprior:
-            assert self.dir_gprior_val.shape == (2, self.k)
-            assert np.all(self.dir_gprior_val[1] > 0.0)
+        if self.use_gprior:
+            assert self.gprior.shape == (2, self.k)
+            assert np.all(self.gprior[1] > 0.0)
 
     def objective(self, x, use_ad=False):
         # unpack variable
@@ -123,16 +123,11 @@ class LimeTr:
             val += 0.5*R.dot(D.invDot(R))
 
         # add gpriors
-        if self.use_lin_gprior:
-            val += 0.5*np.sum(
-                ((self.lin_gprior_mat.dot(x) - self.lin_gprior_val[0]) /
-                 self.lin_gprior_val[1])**2
-                )
+        if self.use_regularizer:
+            val += 0.5*np.sum(((self.H(x) - self.h[0])/self.h[1])**2)
 
-        if self.use_dir_gprior:
-            val += 0.5*np.sum(
-                ((x - self.dir_gprior_val[0]) / self.dir_gprior_val[1])**2
-                )
+        if self.use_gprior:
+            val += 0.5*np.sum(((x - self.gprior[0])/self.gprior[1])**2)
 
         return val
 
@@ -168,6 +163,14 @@ class LimeTr:
 
         g = np.hstack((g_beta, g_gamma))
 
+        # add gradient from the regularizer
+        if self.use_regularizer:
+            g += self.JH(x).T.dot((self.H(x) - self.h[0])/self.h[1]**2)
+
+        # add the gradient from the gprior
+        if self.use_gprior:
+            g += (x - self.gprior[0])/self.gprior[1]**2
+
         return g
 
     def optimize(self, x0=None, print_level=0, max_iter=100):
@@ -176,24 +179,15 @@ class LimeTr:
 
         assert x0.size == self.k
 
-        if self.use_lin_uprior:
-            opt_problem = ipopt.problem(
-                n=self.k,
-                m=self.num_lin_uprior,
-                problem_obj=self,
-                lb=self.dir_uprior_val[0],
-                ub=self.dir_uprior_val[1],
-                cl=self.lin_uprior_val[0],
-                cu=self.lin_uprior_val[1]
-                )
-        else:
-            opt_problem = ipopt.problem(
-                n=self.k,
-                m=0,
-                problem_obj=self,
-                lb=self.dir_uprior_val[0],
-                ub=self.dir_uprior_val[1]
-                )
+        opt_problem = ipopt.problem(
+            n=self.k,
+            m=self.num_constraints,
+            problem_obj=self,
+            lb=self.uprior[0],
+            ub=self.uprior[1],
+            cl=self.cl,
+            cu=self.cu
+            )
 
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)
