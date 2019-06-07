@@ -1,5 +1,6 @@
 # test function logDet
 
+
 def utils_varmat_logDet():
     import numpy as np
     from limetr.utils import VarMat

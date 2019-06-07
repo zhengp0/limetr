@@ -4,6 +4,7 @@ import sys
 # add current directory
 sys.path.append('./')
 
+
 def run_test(name):
     namespace = {}
     exec('import ' + name, namespace)

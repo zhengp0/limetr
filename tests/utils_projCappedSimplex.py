@@ -22,5 +22,5 @@ def utils_projCappedSimplex():
     if not ok:
         print('tr_w', tr_w)
         print('my_w', my_w)
-    
+
     return ok

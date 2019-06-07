@@ -1,6 +1,7 @@
 # nonlinear mixed effects model
 import numpy as np
 import ipopt
+from copy import deepcopy
 from limetr.utils import VarMat
 from limetr.utils import projCappedSimplex
 
@@ -225,7 +226,7 @@ class LimeTr:
 
         val = 0.5*np.sum(r*w/(self.V + t))
         val += 0.5*self.N*np.log(2.0*np.pi) + 0.5*np.sum(np.log(d))
-        
+
         return val
 
     def gradientTrimming(self, w, use_ad=False, eps=1e-10):
@@ -319,6 +320,17 @@ class LimeTr:
 
         return self.beta, self.gamma, self.w
 
+    def simulateData(self, beta_t, gamma_t):
+        # sample random effects and measurement error
+        varmat = VarMat(self.V, self.Z, gamma_t, self.n)
+        D_blocks = varmat.varMatBlocks()
+        u = [np.random.multivariate_normal(np.zeros(self.n[i]), D_blocks[i])
+             for i in range(self.m)]
+        U = np.hstack(u)
+        E = np.random.randn(self.N)*self.S
+
+        self.Y = self.F(beta_t) + U + E
+
     @classmethod
     def testProblem(cls,
                     use_trimming=False,
@@ -401,3 +413,25 @@ class LimeTr:
                    H=H, JH=JH, h=h,
                    uprior=uprior, gprior=gprior,
                    inlier_percentage=inlier_percentage)
+
+    @staticmethod
+    def sampleSoln(lt, sample_size=1, print_level=0, max_iter=100):
+        beta_samples = np.zeros((sample_size, lt.k_beta))
+        gamma_samples = np.zeros((sample_size, lt.k_gamma))
+
+        beta_t = lt.beta.copy()
+        gamma_t = lt.gamma.copy()
+
+        lt_copy = deepcopy(lt)
+
+        for i in range(sample_size):
+            lt_copy.simulateData(beta_t, gamma_t)
+            lt_copy.optimize(print_level=print_level, max_iter=max_iter)
+
+            beta_samples[i] = lt_copy.beta
+            gamma_samples[i] = lt_copy.gamma
+
+            print('sampling solution progress %0.2f' % ((i + 1)/sample_size),
+                  end='\r')
+
+        return beta_samples, gamma_samples

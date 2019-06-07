@@ -1,5 +1,6 @@
 # test function invDot
 
+
 def utils_varmat_invDot():
     import numpy as np
     from limetr.utils import VarMat

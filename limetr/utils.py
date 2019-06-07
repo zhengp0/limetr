@@ -36,6 +36,16 @@ class VarMat:
     # public functions
     # -------------------------------------------------------------------------
     def varMat(self):
+        diag_blocks = self.varMatBlocks()
+
+        return block_diag(*diag_blocks)
+
+    def invVarMat(self):
+        diag_blocks = self.invVarMatBlocks()
+
+        return block_diag(*diag_blocks)
+
+    def varMatBlocks(self):
         split_idx = np.cumsum(self.study_sizes)[:-1]
         v_study = np.split(self.v, split_idx)
         if not self.z_rank_1:
@@ -46,9 +56,9 @@ class VarMat:
         diag_blocks = [self._blockVarMat(v_study[i], z_study[i], self.gamma)
                        for i in range(self.num_studies)]
 
-        return block_diag(*diag_blocks)
+        return diag_blocks
 
-    def invVarMat(self):
+    def invVarMatBlocks(self):
         split_idx = np.cumsum(self.study_sizes)[:-1]
         v_study = np.split(self.v, split_idx)
         if not self.z_rank_1:
@@ -59,7 +69,7 @@ class VarMat:
         diag_blocks = [self._blockInvVarMat(v_study[i], z_study[i], self.gamma)
                        for i in range(self.num_studies)]
 
-        return block_diag(*diag_blocks)
+        return diag_blocks
 
     def dot(self, x):
         if x.ndim == 1:
