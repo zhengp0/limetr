@@ -9,9 +9,6 @@ def limetr_objectiveTrimming():
     # -------------------------------------------------------------------------
     model = LimeTr.testProblem(use_trimming=True)
 
-    # decouple all the studies
-    model.n = np.array([1]*model.N)
-
     tol = 1e-8
 
     # test objectiveTrimming
@@ -19,7 +16,11 @@ def limetr_objectiveTrimming():
     x = np.hstack((model.beta, model.gamma))
     w = model.w
 
-    tr_obj = model.objective(x, use_ad=True)
+    r = model.Y - model.F(model.beta)
+    t = (model.Z**2).dot(model.gamma)
+
+    tr_obj = 0.5*np.sum(r**2*w/(model.V + t)) + 0.5*model.N*np.log(2.0*np.pi)\
+        + 0.5*np.sum(np.log(model.V**w + t*w))
     my_obj = model.objectiveTrimming(w)
 
     err = np.abs(tr_obj - my_obj)

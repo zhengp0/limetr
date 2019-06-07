@@ -223,7 +223,7 @@ class LimeTr:
         v = self.V**w
         d = v + t*w
 
-        val = 0.5*np.sum(r*w/d)
+        val = 0.5*np.sum(r*w/(self.V + t))
         val += 0.5*self.N*np.log(2.0*np.pi) + 0.5*np.sum(np.log(d))
         
         return val
@@ -245,7 +245,7 @@ class LimeTr:
         v = self.V**w
         d = v + t*w
 
-        g = 0.5*r*v*(1.0 - np.log(v))/d**2
+        g = 0.5*r/(self.V + t)
         g += 0.5*(t + v*np.log(self.V))/d
 
         return g
@@ -268,6 +268,8 @@ class LimeTr:
 
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)
+
+        soln, info = opt_problem.solve(x0)
 
         self.soln = soln
         self.info = info
@@ -294,17 +296,23 @@ class LimeTr:
         num_iter = 0
         err = outer_tol + 1.0
 
-        while err >= tol:
+        while err >= outer_tol:
             self.optimize(x0=self.soln,
                           print_level=inner_print_level,
                           max_iter=inner_max_iter)
             w_new = projCappedSimplex(
-                        self.w - outer_step_size*self.gradientTrimming(self.w))
+                        self.w - outer_step_size*self.gradientTrimming(self.w),
+                        self.num_inliers)
 
             err = np.linalg.norm(w_new - self.w)/outer_step_size
             np.copyto(self.w, w_new)
 
             num_iter += 1
+
+            if outer_verbose:
+                obj = self.objectiveTrimming(self.w)
+                print('iter %4d, obj %8.2e, err %8.2e' % (num_iter, obj, err))
+
             if num_iter >= outer_max_iter:
                 print('reach max outer iter')
                 break
