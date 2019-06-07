@@ -2,9 +2,7 @@
 import numpy as np
 import ipopt
 from copy import deepcopy
-from limetr.utils import VarMat
-from limetr.utils import projCappedSimplex
-
+from limetr import utils
 
 class LimeTr:
     def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z, S,
@@ -135,7 +133,7 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = VarMat(V, Z, gamma, self.n)
+        D = utils.VarMat(V, Z, gamma, self.n)
 
         val = 0.5*self.N*np.log(2.0*np.pi)
 
@@ -194,7 +192,7 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = VarMat(V, Z, gamma, self.n)
+        D = utils.VarMat(V, Z, gamma, self.n)
 
         # gradient for beta
         g_beta = -JF_beta.T.dot(D.invDot(R))
@@ -301,7 +299,7 @@ class LimeTr:
             self.optimize(x0=self.soln,
                           print_level=inner_print_level,
                           max_iter=inner_max_iter)
-            w_new = projCappedSimplex(
+            w_new = utils.projCappedSimplex(
                         self.w - outer_step_size*self.gradientTrimming(self.w),
                         self.num_inliers)
 
@@ -322,7 +320,7 @@ class LimeTr:
 
     def simulateData(self, beta_t, gamma_t):
         # sample random effects and measurement error
-        varmat = VarMat(self.V, self.Z, gamma_t, self.n)
+        varmat = utils.VarMat(self.V, self.Z, gamma_t, self.n)
         D_blocks = varmat.varMatBlocks()
         u = [np.random.multivariate_normal(np.zeros(self.n[i]), D_blocks[i])
              for i in range(self.m)]
