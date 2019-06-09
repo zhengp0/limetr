@@ -4,11 +4,12 @@ import ipopt
 from copy import deepcopy
 from limetr import utils
 
+
 class LimeTr:
     def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z, S,
                  C=None, JC=None, c=None,
                  H=None, JH=None, h=None,
-                 uprior=None, gprior=None,
+                 uprior=None, gprior=None, lprior=None,
                  inlier_percentage=1.0):
         # pass in the dimension
         self.n = np.array(n)
@@ -17,6 +18,7 @@ class LimeTr:
         self.k_beta = k_beta
         self.k_gamma = k_gamma
         self.k = self.k_beta + self.k_gamma
+        self.k_total = self.k
 
         self.idx_beta = slice(0, self.k_beta)
         self.idx_gamma = slice(self.k_beta, self.k)
@@ -35,6 +37,7 @@ class LimeTr:
         self.use_regularizer = (H is not None)
         self.use_uprior = (uprior is not None)
         self.use_gprior = (gprior is not None)
+        self.use_lprior = (lprior is not None)
 
         self.C = C
         self.JC = JC
@@ -47,8 +50,8 @@ class LimeTr:
             self.cu = c[1]
         else:
             self.num_constraints = 0
-            self.cl = None
-            self.cu = None
+            self.cl = []
+            self.cu = []
 
         self.H = H
         self.JH = JH
@@ -72,6 +75,91 @@ class LimeTr:
 
         if self.use_gprior:
             self.gprior = gprior
+            self.gm = gprior[0]
+            self.gw = 1.0/gprior[1]**2
+
+        if self.use_lprior:
+            self.lprior = lprior
+            self.lm = lprior[0]
+            self.lw = np.sqrt(2.0)/lprior[1]
+
+            # double dimension pass into ipopt
+            self.k_total += self.k
+
+            # extend the constraints matrix
+            if self.use_constraints:
+                def constraints(x):
+                    v = x[:self.k]
+                    v_abs = x[self.k:]
+
+                    vec1 = C(v)
+                    vec2 = np.hstack((v_abs - (v - self.lm),
+                                      v_abs + (v - self.lm)))
+
+                    return np.hstack((vec1, vec2))
+
+                def jacobian(x):
+                    v = x[:self.k]
+                    v_abs = x[self.k:]
+                    Id = np.eye(self.k)
+
+                    mat1 = JC(v)
+                    mat2 = np.block([[-Id, Id], [Id, Id]])
+
+                    return np.vstack((mat1, mat2))
+            else:
+                def constraints(x):
+                    v = x[:self.k]
+                    v_abs = x[self.k:]
+
+                    vec = np.hstack((v_abs - v, v_abs + v))
+
+                    return vec
+
+                def jacobian(x):
+                    v = x[:self.k]
+                    v_abs = x[self.k:]
+                    Id = np.eye(self.k)
+
+                    mat = np.block([[-Id, Id], [Id, Id]])
+
+                    return mat
+
+            self.num_constraints += 2*self.k
+            self.constraints = constraints
+            self.jacobian = jacobian
+            self.cl = np.hstack((self.cl, np.zeros(2*self.k)))
+            self.cu = np.hstack((self.cu, np.repeat(np.inf, 2*self.k)))
+
+            # extend the regularizer matrix
+            if self.use_regularizer:
+                def H_new(x):
+                    v = x[:self.k]
+
+                    return H(v)
+
+                def JH_new(x):
+                    v = x[:self.k]
+
+                    return np.hstack((JH(v),
+                                      np.zeros((self.num_regularizer,
+                                                self.k))))
+
+                self.H = H_new
+                self.JH = JH_new
+
+            # extend Gaussian and Uniform priors
+            if self.use_gprior:
+                gprior_abs = np.array([[0.0]*self.k, [np.inf]*self.k])
+                self.gprior = np.hstack((self.gprior, gprior_abs))
+                self.gm = self.gprior[0]
+                self.gw = 1.0/self.gprior[1]**2
+
+            if self.use_uprior:
+                uprior_abs = np.array([[0.0]*self.k, [np.inf]*self.k])
+                self.uprior = np.hstack((self.uprior, uprior_abs))
+                self.lb = self.uprior[0]
+                self.ub = self.uprior[1]
 
         # trimming option
         self.use_trimming = (0.0 < inlier_percentage < 1.0)
@@ -154,16 +242,19 @@ class LimeTr:
             val += 0.5*np.sum(((self.H(x) - self.h[0])/self.h[1])**2)
 
         if self.use_gprior:
-            val += 0.5*np.sum(((x - self.gprior[0])/self.gprior[1])**2)
+            val += 0.5*self.gw.dot((x - self.gm)**2)
+
+        if self.use_lprior:
+            val += self.lw.dot(x[self.k:])
 
         return val
 
     def gradient(self, x, use_ad=False, eps=1e-12):
         if use_ad:
             # should only use when testing
-            g = np.zeros(self.k)
+            g = np.zeros(self.k_total)
             z = x + 0j
-            for i in range(self.k):
+            for i in range(self.k_total):
                 z[i] += eps*1j
                 g[i] = self.objective(z, use_ad=use_ad).imag/eps
                 z[i] -= eps*1j
@@ -210,9 +301,13 @@ class LimeTr:
         if self.use_regularizer:
             g += self.JH(x).T.dot((self.H(x) - self.h[0])/self.h[1]**2)
 
-        # add the gradient from the gprior
+        # add gradient from the gprior
         if self.use_gprior:
-            g += (x - self.gprior[0])/self.gprior[1]**2
+            g += (x - self.gm)*self.gw
+
+        # add gradient from the lprior
+        if self.use_lprior:
+            g = np.hstack((g, self.lw))
 
         return g
 
@@ -252,11 +347,13 @@ class LimeTr:
     def optimize(self, x0=None, print_level=0, max_iter=100):
         if x0 is None:
             x0 = np.hstack((self.beta, self.gamma))
+            if self.use_lprior:
+                x0 = np.hstack((x0, np.zeros(self.k)))
 
-        assert x0.size == self.k
+        assert x0.size == self.k_total
 
         opt_problem = ipopt.problem(
-            n=self.k,
+            n=self.k_total,
             m=self.num_constraints,
             problem_obj=self,
             lb=self.uprior[0],
@@ -411,6 +508,38 @@ class LimeTr:
                    H=H, JH=JH, h=h,
                    uprior=uprior, gprior=gprior,
                    inlier_percentage=inlier_percentage)
+
+    @classmethod
+    def testProblemLasso(cls):
+        m = 100
+        n = [1]*m
+        N = sum(n)
+        k_beta = 150
+        k_gamma = 1
+        k = k_beta + k_gamma
+
+        beta_t = np.zeros(k_beta)
+        beta_t[np.random.choice(k_beta, 5)] = np.sign(np.random.randn(5))
+        gamma_t = np.zeros(k_gamma)
+
+        X = np.random.randn(N, k_beta)
+        Z = np.ones((N, k_gamma))
+        Y = X.dot(beta_t)
+        S = np.repeat(1.0, N)
+
+        weight = 0.1*np.linalg.norm(X.T.dot(Y), np.inf)
+
+        def F(beta):
+            return X.dot(beta)
+
+        def JF(beta):
+            return X
+
+        uprior = np.array([[-np.inf]*k_beta + [0.0], [np.inf]*k_beta + [0.0]])
+        lprior = np.array([[0.0]*k, [np.sqrt(2.0)/weight]*k])
+
+        return cls(n, k_beta, k_gamma, Y, F, JF, Z, S,
+                   uprior=uprior, lprior=lprior)
 
     @staticmethod
     def sampleSoln(lt, sample_size=1, print_level=0, max_iter=100):
