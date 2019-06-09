@@ -218,12 +218,12 @@ class LimeTr:
 
     def objectiveTrimming(self, w):
         t = (self.Z**2).dot(self.gamma)
-        r = (self.Y - self.F(self.beta))**2
-        v = self.V**w
-        d = v + t*w
+        r = self.Y - self.F(self.beta)
+        v = self.V
+        d = v + t
 
-        val = 0.5*np.sum(r*w/(self.V + t))
-        val += 0.5*self.N*np.log(2.0*np.pi) + 0.5*np.sum(np.log(d))
+        val = 0.5*np.sum(r**2*w/d)
+        val += 0.5*self.N*np.log(2.0*np.pi) + 0.5*w.dot(np.log(d))
 
         return val
 
@@ -241,11 +241,11 @@ class LimeTr:
 
         t = (self.Z**2).dot(self.gamma)
         r = (self.Y - self.F(self.beta))**2
-        v = self.V**w
-        d = v + t*w
+        v = self.V
+        d = v + t
 
-        g = 0.5*r/(self.V + t)
-        g += 0.5*(t + v*np.log(self.V))/d
+        g = 0.5*r/d
+        g += 0.5*np.log(d)
 
         return g
 

@@ -19,9 +19,10 @@ def limetr_objectiveTrimming():
 
     r = model.Y - model.F(model.beta)
     t = (model.Z**2).dot(model.gamma)
+    d = model.V + t
 
-    tr_obj = 0.5*np.sum(r**2*w/(model.V + t)) + 0.5*model.N*np.log(2.0*np.pi)\
-        + 0.5*np.sum(np.log(model.V**w + t*w))
+    tr_obj = 0.5*np.sum(r**2*w/d) + 0.5*model.N*np.log(2.0*np.pi)\
+        + 0.5*w.dot(np.log(d))
     my_obj = model.objectiveTrimming(w)
 
     err = np.abs(tr_obj - my_obj)
