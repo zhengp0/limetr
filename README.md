@@ -1,0 +1,1 @@
+Linear Mixed Effects Model with Trimming

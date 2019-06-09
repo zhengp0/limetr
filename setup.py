@@ -8,8 +8,9 @@ ext = Extension(name='limetr.futils',
                 libraries=['lapack', 'blas'])
 
 setup(name='limetr',
-      version='0.0.0',
+      version='0.0.1',
       description='linear mixed effects model with trimming',
+      url='https://github.com/zhengp0/limetr',
       author='Peng Zheng',
       author_email='zhengp@uw.edu',
       license='MIT',
