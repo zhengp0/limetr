@@ -422,9 +422,8 @@ class LimeTr:
         u = [np.random.multivariate_normal(np.zeros(self.n[i]), D_blocks[i])
              for i in range(self.m)]
         U = np.hstack(u)
-        E = np.random.randn(self.N)*self.S
 
-        self.Y = self.F(beta_t) + U + E
+        self.Y = self.F(beta_t) + U
 
     @classmethod
     def testProblem(cls,
