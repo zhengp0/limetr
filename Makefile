@@ -2,17 +2,17 @@
 
 
 build: setup.py
-	python3 setup.py build
+	python setup.py build
 
 install: setup.py
-	python3 setup.py install
+	python setup.py install
 
 sdist: setup.py
-	python3 setup.py sdist
+	python setup.py sdist
 
 test:
-	python3 tests/check_utils.py
-	python3 tests/check_limetr.py
+	python tests/check_utils.py
+	python tests/check_limetr.py
 
 clean:
 	find . -name "*.so*" | xargs rm -rf

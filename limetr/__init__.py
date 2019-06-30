@@ -58,6 +58,8 @@ class LimeTr:
         self.h = h
         if self.use_regularizer:
             self.num_regularizer = H(np.zeros(self.k)).size
+            self.hm = self.h[0]
+            self.hw = 1.0/self.h[1]**2
         else:
             self.num_regularizer = 0
 
@@ -239,7 +241,7 @@ class LimeTr:
 
         # add gpriors
         if self.use_regularizer:
-            val += 0.5*np.sum(((self.H(x) - self.h[0])/self.h[1])**2)
+            val += 0.5*self.hw.dot((self.H(x) - self.hm)**2)
 
         if self.use_gprior:
             val += 0.5*self.gw.dot((x - self.gm)**2)
@@ -299,7 +301,7 @@ class LimeTr:
 
         # add gradient from the regularizer
         if self.use_regularizer:
-            g += self.JH(x).T.dot((self.H(x) - self.h[0])/self.h[1]**2)
+            g += self.JH(x).T.dot((self.H(x) - self.hm)*self.hw)
 
         # add gradient from the gprior
         if self.use_gprior:
@@ -415,7 +417,7 @@ class LimeTr:
 
         return self.beta, self.gamma, self.w
 
-    def simulateData(self, beta_t, gamma_t):
+    def simulateData(self, beta_t, gamma_t, sim_prior=True):
         # sample random effects and measurement error
         varmat = utils.VarMat(self.V, self.Z, gamma_t, self.n)
         D_blocks = varmat.varMatBlocks()
@@ -424,6 +426,15 @@ class LimeTr:
         U = np.hstack(u)
 
         self.Y = self.F(beta_t) + U
+
+        if sim_prior:
+            if use_gprior:
+                self.gm = self.gprior[0] +\
+                    np.random.randn(self.k)*self.gprior[1]
+
+            if use_regularizer:
+                self.hm = self.h[0] +\
+                    np.random.randn(self.num_regularizer)*self.h[1]
 
     @classmethod
     def testProblem(cls,
