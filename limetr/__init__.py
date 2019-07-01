@@ -428,11 +428,11 @@ class LimeTr:
         self.Y = self.F(beta_t) + U
 
         if sim_prior:
-            if use_gprior:
+            if self.use_gprior:
                 self.gm = self.gprior[0] +\
                     np.random.randn(self.k)*self.gprior[1]
 
-            if use_regularizer:
+            if self.use_regularizer:
                 self.hm = self.h[0] +\
                     np.random.randn(self.num_regularizer)*self.h[1]
 
