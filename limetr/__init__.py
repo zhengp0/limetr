@@ -429,12 +429,18 @@ class LimeTr:
 
         if sim_prior:
             if self.use_gprior:
-                self.gm = self.gprior[0] +\
-                    np.random.randn(self.k)*self.gprior[1]
+                valid_id = ~np.isinf(self.gprior[1])
+                valid_num = np.sum(valid_id)
+                self.gm = np.zeros(self.k)
+                self.gm[valid_id] = self.gprior[0][valid_id] +\
+                    np.random.randn(valid_num)*self.gprior[1][valid_id]
 
             if self.use_regularizer:
-                self.hm = self.h[0] +\
-                    np.random.randn(self.num_regularizer)*self.h[1]
+                valid_id = ~np.isinf(self.h[1])
+                valid_num = np.sum(valid_id)
+                self.hm = np.zeros(self.num_regularizer)
+                self.hm[valid_id] = self.h[0][valid_id] +\
+                    np.random.randn(valid_num)*self.h[1][valid_id]
 
     @classmethod
     def testProblem(cls,
