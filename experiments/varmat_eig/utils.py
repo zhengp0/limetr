@@ -1,6 +1,7 @@
 # experiment of operate varmat with singular value decomposition
 import numpy as np
 from special_mat import izmat
+from scipy.linalg import block_diag
 
 
 class VarMat:
@@ -17,9 +18,6 @@ class VarMat:
     - diag
     - invDiag
     - logDet
-
-    and variables
-    - eig_vals
     """
     def __init__(self, v, z, gamma, n):
         """
@@ -52,7 +50,7 @@ class VarMat:
         # decomposition of scaled z
         self.scaled_z_ns = np.minimum(self.n, self.k)
         self.scaled_z_nu = self.n*self.scaled_z_ns
-        self.scaled_z_s = np.zeros(self.scaled_ns.sum())
+        self.scaled_z_s = np.zeros(self.scaled_z_ns.sum())
         self.scaled_z_u = np.zeros(self.n.dot(self.scaled_z_ns))
 
         izmat.zdecomp(self.n, self.scaled_z_nu, self.scaled_z_ns,
@@ -69,13 +67,39 @@ class VarMat:
 
     def varMat(self):
         """
-        returns the covariate matrix
+        naive implementation of the varmat
         """
+        diag_blocks = self.varMatBlocks()
+
+        return block_diag(*diag_blocks)
 
     def invVarMat(self):
         """
-        returns the inverse covariate matrix
+        naive implementation of the inverse varmat
         """
+        diag_blocks = self.invVarMatBlocks()
+
+        return block_diag(*diag_blocks)
+
+    def varMatBlocks(self):
+        split_idx = np.cumsum(self.n)[:-1]
+        v_study = np.split(self.v, split_idx)
+        z_study = np.split(self.z, split_idx, axis=0)
+
+        diag_blocks = [self._blockVarMat(v_study[i], z_study[i], self.gamma)
+                       for i in range(self.m)]
+
+        return diag_blocks
+
+    def invVarMatBlocks(self):
+        split_idx = np.cumsum(self.n)[:-1]
+        v_study = np.split(self.v, split_idx)
+        z_study = np.split(self.z, split_idx, axis=0)
+
+        diag_blocks = [self._blockInvVarMat(v_study[i], z_study[i], self.gamma)
+                       for i in range(self.m)]
+
+        return diag_blocks
 
     def dot(self, x):
         """
@@ -138,7 +162,7 @@ class VarMat:
         """
         returns the log determinant of the covariate matrix
         """
-        return np.sum(np.log(self.eig_vals)) + np.sum(np.log(self.v))
+        return np.sum(np.log(self.scaled_e)) + np.sum(np.log(self.v))
 
     @classmethod
     def testProblem(cls):
@@ -151,3 +175,13 @@ class VarMat:
         gamma = np.random.rand(k)
 
         return cls(v, z, gamma, n)
+
+    # internal functions
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _blockVarMat(v, z, gamma):
+        return np.diag(v) + (z*gamma).dot(z.T)
+
+    @staticmethod
+    def _blockInvVarMat(v, z, gamma):
+        return np.linalg.inv(np.diag(v) + (z*gamma).dot(z.T))

@@ -27,7 +27,12 @@ fun_list = [
     'izmat_izmm',
     'izmat_izeig',
     'izmat_block_izdiag',
-    'izmat_izdiag'
+    'izmat_izdiag',
+    'varmat_dot',
+    'varmat_invDot',
+    'varmat_diag',
+    'varmat_invDiag',
+    'varmat_logDet'
 ]
 
 error_count = 0
