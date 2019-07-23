@@ -71,6 +71,12 @@ class VarMat:
 
         return diag_blocks
 
+    def diag(self):
+        return self.v + np.sum((self.z**2)*self.gamma, axis=1)
+
+    def invDiag(self):
+        return np.diag(self.invDot(np.identity(num_data)))
+
     def dot(self, x):
         if x.ndim == 1:
             if self.z_rank_1:

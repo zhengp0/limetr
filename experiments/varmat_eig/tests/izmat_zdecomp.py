@@ -1,7 +1,7 @@
 # check utils zdecomp
 
 
-def utils_zdecomp():
+def izmat_zdecomp():
     import numpy as np
     from special_mat import izmat
 

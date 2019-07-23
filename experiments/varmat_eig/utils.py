@@ -1,5 +1,6 @@
 # experiment of operate varmat with singular value decomposition
 import numpy as np
+from special_mat import izmat
 
 
 class VarMat:
@@ -13,12 +14,12 @@ class VarMat:
     - invVarMat
     - dot
     - invDot
+    - diag
+    - invDiag
     - logDet
-    - trace
 
     and variables
-    - s_vals
-    - s_vecs
+    - eig_vals
     """
     def __init__(self, v, z, gamma, n):
         """
@@ -44,15 +45,27 @@ class VarMat:
         self.gamma = gamma
 
         # processed variables
-        self.v_sqrt = np.sqrt(self.v)
-        self.gamma_sqrt = np.sqrt(self.gamma)
-        self.z_scaled = (self.z*self.gamma_sqrt)/self.v_sqrt.reshape(self.N, 1)
+        self.sqrt_v = np.sqrt(self.v)
+        self.sqrt_gamma = np.sqrt(self.gamma)
+        self.scaled_z = (self.z*self.sqrt_gamma)/self.sqrt_v.reshape(self.N, 1)
 
-        # reserved variables
-        self.n_s = np.minimum(self.n, self.k)
-        self.n_u = self.n*self.n_s
-        s_vals = np.zeros(s_n.sum())
-        s_vecs = np.zeros(self.n.dot(s_n))
+        # decomposition of scaled z
+        self.scaled_z_ns = np.minimum(self.n, self.k)
+        self.scaled_z_nu = self.n*self.scaled_z_ns
+        self.scaled_z_s = np.zeros(self.scaled_ns.sum())
+        self.scaled_z_u = np.zeros(self.n.dot(self.scaled_z_ns))
+
+        izmat.zdecomp(self.n, self.scaled_z_nu, self.scaled_z_ns,
+                      self.scaled_z, self.scaled_z_u, self.scaled_z_s)
+
+        self.scaled_z_nd = self.scaled_z_ns
+        self.scaled_z_d = self.scaled_z_s**2
+
+        # inverse and eigenvalues
+        self.inv_scaled_z_d = 1.0/(1.0 + self.scaled_z_d) - 1.0
+        self.scaled_e = izmat.izeig(self.N, self.n,
+                                    self.scaled_z_nd, self.scaled_z_d)
+
 
     def varMat(self):
         """
@@ -68,20 +81,73 @@ class VarMat:
         """
         dot product with the covariate matrix
         """
+        if x.ndim == 1:
+            func = izmat.izmv
+            sqrt_v = self.sqrt_v
+        elif x.ndim == 2:
+            func = izmat.izmm
+            sqrt_v = self.sqrt_v.reshape(self.N, 1)
+        else:
+            print('unsupported dim of x')
+            return None
+
+        return func(self.scaled_z_nu, self.scaled_z_nd, self.n,
+                    self.scaled_z_u, self.scaled_z_d, x*sqrt_v)*sqrt_v
 
     def invDot(self, x):
         """
         inverse dot product with the covariate matrix
         """
+        if x.ndim == 1:
+            func = izmat.izmv
+            sqrt_v = self.sqrt_v
+        elif x.ndim == 2:
+            func = izmat.izmm
+            sqrt_v = self.sqrt_v.reshape(self.N, 1)
+        else:
+            print('unsupported dim of x')
+            return None
+
+        return func(self.scaled_z_nu, self.scaled_z_nd, self.n,
+                    self.scaled_z_u, self.scaled_z_d, x/sqrt_v)/sqrt_v
+
+    def diag(self):
+        """
+        return the diagonal of the matrix
+        """
+        scaled_diag = izmat.izdiag(
+            self.N, self.scaled_z_nu, self.scaled_z_nd,
+            self.n, self.scaled_z_u, self.scaled_z_d
+            )
+
+        return scaled_diag*self.v
+
+
+    def invDiag(self):
+        """
+        return the diagonal of the inverse covariate matrix
+        """
+        inv_scaled_diag = izmat.izdiag(
+            self.N, self.scaled_z_nu, self.scaled_z_nd,
+            self.n, self.scaled_z_u, self.inv_scaled_z_d
+            )
+
+        return inv_scaled_diag/self.v
 
     def logDet(self):
         """
         returns the log determinant of the covariate matrix
         """
-        return np.sum(np.log(self.eig_vals))
+        return np.sum(np.log(self.eig_vals)) + np.sum(np.log(self.v))
 
-    def trace(self):
-        """
-        returns the trace of the covariate matrix
-        """
-        return np.sum(self.eig_vals)
+    @classmethod
+    def testProblem(cls):
+        n = [3, 4, 5]
+        N = sum(n)
+        k = 4
+
+        v = np.random.rand(N) + 1e-2
+        z = np.random.randn(N, k)
+        gamma = np.random.rand(k)
+
+        return cls(v, z, gamma, n)

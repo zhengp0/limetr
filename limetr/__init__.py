@@ -6,7 +6,8 @@ from limetr import utils
 
 
 class LimeTr:
-    def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z, S,
+    def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z,
+                 S=None, share_std=False,
                  C=None, JC=None, c=None,
                  H=None, JH=None, h=None,
                  uprior=None, gprior=None, lprior=None,
@@ -17,11 +18,23 @@ class LimeTr:
         self.N = sum(n)
         self.k_beta = k_beta
         self.k_gamma = k_gamma
-        self.k = self.k_beta + self.k_gamma
+        # if include measurement error also as variable
+        if S is not None:
+            self.std_flag = 0
+            self.k_delta = 0
+        elif share_std:
+            self.std_flag = 1
+            self.k_delta = 1
+        else:
+            self.std_flag = 2
+            self.k_delta = self.m
+
+        self.k = self.k_beta + self.k_gamma + self.k_delta
         self.k_total = self.k
 
         self.idx_beta = slice(0, self.k_beta)
-        self.idx_gamma = slice(self.k_beta, self.k)
+        self.idx_gamma = slice(self.k_beta, self.k_beta + self.gamma)
+        self.idx_delta = slice(self.k_beta + self.gamma, self.k)
         self.idx_split = np.cumsum(np.insert(n, 0, 0))[:-1]
 
         # pass in the data
@@ -30,7 +43,8 @@ class LimeTr:
         self.JF = JF
         self.Z = Z
         self.S = S
-        self.V = S**2
+        if self.std_flag == 0:
+            self.V = S**2
 
         # pass in the priors
         self.use_constraints = (C is not None)
@@ -67,8 +81,9 @@ class LimeTr:
             self.uprior = uprior
         else:
             self.uprior = np.array([
-                [-np.inf]*self.k_beta + [0.0]*self.k_gamma,
-                [np.inf]*self.k_beta + [np.inf]*self.k_gamma
+                [-np.inf]*self.k_beta + [0.0]*self.k_gamma +\
+                    [1e-7]*self.k_delta,
+                [np.inf]*self.k
                 ])
             self.use_uprior = True
 
@@ -175,15 +190,17 @@ class LimeTr:
         self.info = None
         self.beta = np.zeros(self.k_beta)
         self.gamma = np.repeat(0.01, self.k_gamma)
+        self.delta = np.repeat(0.01, self.k_delta)
 
         # check the input
         self.check()
 
     def check(self):
         assert self.Y.shape == (self.N,)
-        assert self.S.shape == (self.N,)
         assert self.Z.shape == (self.N, self.k_gamma)
-        assert np.all(self.S > 0.0)
+        if self.S is not None:
+            assert self.S.shape == (self.N,)
+            assert np.all(self.S > 0.0)
 
         if self.use_constraints:
             assert self.c.shape == (2, self.num_constraints)
@@ -202,10 +219,14 @@ class LimeTr:
 
         assert 0.0 < self.inlier_percentage <= 1.0
 
+        if self.k > self.N:
+            print('Warning: information insufficient!')
+
     def objective(self, x, use_ad=False):
         # unpack variable
         beta = x[self.idx_beta]
         gamma = x[self.idx_gamma]
+        delta = x[self.idx_delta]
 
         # trimming option
         if self.use_trimming:
@@ -214,12 +235,22 @@ class LimeTr:
             F_beta = self.F(beta)*sqrt_w
             Y = self.Y*sqrt_w
             Z = self.Z*sqrt_W
-            V = self.V**self.w
+            if self.std_flag == 0:
+                V = self.V**self.w
+            elif self.std_flag == 1:
+                V = np.repeat(delta[0], self.N)**self.w
+            elif self.std_flag == 2:
+                V = np.repeat(delta, self.n)**self.w
         else:
             F_beta = self.F(beta)
             Y = self.Y
             Z = self.Z
-            V = self.V
+            if self.std_flag == 0:
+                V = self.V
+            elif self.std_flag == 1:
+                V = np.repeat(delta[0], self.N)
+            elif self.std_flag == 2:
+                V = np.repeat(delta, self.n)
 
         # residual and variance
         R = Y - F_beta
@@ -266,6 +297,7 @@ class LimeTr:
         # unpack variable
         beta = x[self.idx_beta]
         gamma = x[self.idx_gamma]
+        delta = x[self.idx_delta]
 
         # trimming option
         if self.use_trimming:
@@ -275,20 +307,31 @@ class LimeTr:
             JF_beta = self.JF(beta)*sqrt_W
             Y = self.Y*sqrt_w
             Z = self.Z*sqrt_W
-            V = self.V**self.w
+            if self.std_flag == 0:
+                V = self.V**self.w
+            elif self.std_flag == 1:
+                V = np.repeat(delta[0], self.N)**self.w
+            elif self.std_flag == 2:
+                V = np.repeat(delta, self.n)**self.w
         else:
             F_beta = self.F(beta)
             JF_beta = self.JF(beta)
             Y = self.Y
             Z = self.Z
-            V = self.V
+            if self.std_flag == 0:
+                V = self.V
+            elif self.std_flag == 1:
+                V = np.repeat(delta[0], self.N)
+            elif self.std_flag == 2:
+                V = np.repeat(delta, self.n)
 
         # residual and variance
         R = Y - F_beta
         D = utils.VarMat(V, Z, gamma, self.n)
 
         # gradient for beta
-        g_beta = -JF_beta.T.dot(D.invDot(R))
+        DR = D.invDot(R)
+        g_beta = -JF_beta.T.dot(DR)
 
         # gradient for gamma
         DZ = D.invDot(Z)
@@ -296,6 +339,13 @@ class LimeTr:
             0.5*np.sum(
                 np.add.reduceat(DZ.T*R, self.idx_split, axis=1)**2,
                 axis=1)
+
+        # gradient for delta
+        if self.std_flag == 0:
+            g_delta = np.array([])
+        elif self.std_flag == 1:
+            g_delta = 
+        elif self.std_flag == 2:
 
         g = np.hstack((g_beta, g_gamma))
 

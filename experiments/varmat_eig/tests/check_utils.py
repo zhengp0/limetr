@@ -19,10 +19,15 @@ def run_test(name):
 
 
 fun_list = [
-    'utils_lsvd',
-    'utils_zdecomp',
-    'utils_block_izmv',
-    'utils_izmv'
+    'izmat_lsvd',
+    'izmat_zdecomp',
+    'izmat_block_izmv',
+    'izmat_izmv',
+    'izmat_block_izmm',
+    'izmat_izmm',
+    'izmat_izeig',
+    'izmat_block_izdiag',
+    'izmat_izdiag'
 ]
 
 error_count = 0

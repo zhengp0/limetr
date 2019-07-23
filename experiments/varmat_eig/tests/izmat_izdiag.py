@@ -1,7 +1,7 @@
-# check utils izmv
+# check utils izdiag
 
 
-def utils_izmv():
+def izmat_izdiag():
     import numpy as np
     from special_mat import izmat
 
@@ -14,10 +14,8 @@ def utils_izmv():
     m = n.size
 
     z_list = [np.random.randn(n[i], k) for i in range(m)]
-    x_list = [np.random.randn(n[i]) for i in range(m)]
 
     z = np.vstack(z_list)
-    x = np.hstack(x_list)
     
     ns = np.minimum(n, k)
     nu = ns*n
@@ -28,9 +26,9 @@ def utils_izmv():
     s = np.zeros(ns.sum())
 
     izmat.zdecomp(nz, nu, ns, z, u, s)
-    my_y = izmat.izmv(nu, ns, nx, u, s**2, x)
+    my_y = izmat.izdiag(n.sum(), nu, ns, nx, u, s**2)
 
-    y_list = [x_list[i] + z_list[i].dot(z_list[i].T.dot(x_list[i]))
+    y_list = [np.diag(np.eye(n[i]) + z_list[i].dot(z_list[i].T))
               for i in range(m)]
 
     tr_y = np.hstack(y_list)
@@ -38,7 +36,7 @@ def utils_izmv():
     err = np.linalg.norm(tr_y - my_y)
 
     if not ok:
-        print('err in izmv')
+        print('err in izdiag')
         print('err:', err)
 
     return ok

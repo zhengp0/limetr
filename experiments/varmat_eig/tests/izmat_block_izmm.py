@@ -1,7 +1,7 @@
-# check utils block_izmv
+# check utils block_izmm
 
 
-def utils_block_izmv():
+def izmat_block_izmm():
     import numpy as np
     from special_mat import izmat
 
@@ -13,21 +13,21 @@ def utils_block_izmv():
     l = min(n, k)
 
     z = np.random.randn(n, k)
-    x = np.random.randn(n)
+    x = np.random.randn(n, 5)
     
     my_u = np.zeros(n*l)
     my_s = np.zeros(l)
     izmat.lsvd(z, my_u, my_s)
 
     tr_y = x + z.dot(z.T.dot(x))
-    my_y = np.zeros(n)
-    izmat.block_izmv(my_u, my_s**2, x, my_y)
+    my_y = np.zeros((n, 5), order='F')
+    izmat.block_izmm(my_u, my_s**2, x, my_y)
 
     err = np.linalg.norm(tr_y - my_y)
     ok = ok and err < tol
 
     if not ok:
-        print('err in block_izmat tall matrix')
+        print('err in block_izmm tall matrix')
         print('err:', err)
 
     # problem 2, fat matrix
@@ -36,21 +36,21 @@ def utils_block_izmv():
     l = min(n, k)
 
     z = np.random.randn(n, k)
-    x = np.random.randn(n)
+    x = np.random.randn(n, 5)
     
     my_u = np.zeros(n*l)
     my_s = np.zeros(l)
     izmat.lsvd(z, my_u, my_s)
 
     tr_y = x + z.dot(z.T.dot(x))
-    my_y = np.zeros(n)
-    izmat.block_izmv(my_u, my_s**2, x, my_y)
+    my_y = np.zeros((n, 5), order='F')
+    izmat.block_izmm(my_u, my_s**2, x, my_y)
 
     err = np.linalg.norm(tr_y - my_y)
     ok = ok and err < tol
 
     if not ok:
-        print('err in block_izmat fat matrix')
+        print('err in block_izmm fat matrix')
         print('err:', err)
 
     return ok

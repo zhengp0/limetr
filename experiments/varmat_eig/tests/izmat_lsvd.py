@@ -1,7 +1,7 @@
 # check utils lsvd
 
 
-def utils_lsvd():
+def izmat_lsvd():
     import numpy as np
     from special_mat import izmat
 
