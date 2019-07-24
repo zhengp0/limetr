@@ -11,7 +11,8 @@ def limetr_objective():
     model = LimeTr.testProblem(use_constraints=True,
                                use_regularizer=True,
                                use_uprior=True,
-                               use_gprior=True)
+                               use_gprior=True,
+                               know_obs_std=False)
 
     tol = 1e-8
 
@@ -19,6 +20,7 @@ def limetr_objective():
     # -------------------------------------------------------------------------
     x = np.random.randn(model.k)
     x[model.idx_gamma] = 0.1
+    x[model.idx_delta] = 0.1
 
     tr_obj = model.objective(x, use_ad=True)
     my_obj = model.objective(x)

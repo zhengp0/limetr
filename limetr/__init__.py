@@ -344,9 +344,11 @@ class LimeTr:
         if self.std_flag == 0:
             g_delta = np.array([])
         elif self.std_flag == 1:
-            g_delta = -np.sum(DR**2) + np.sum(D.invDiag())
+            g_delta = 0.5*np.array([-np.sum(DR**2) + np.sum(D.invDiag())])
         elif self.std_flag == 2:
-            g_delta = np.add.reduceat(-DR**2 + D.invDiag(), self.idx_split)
+            g_delta = 0.5*(
+                np.add.reduceat(-DR**2 + D.invDiag(), self.idx_split)
+                )
 
         g = np.hstack((g_beta, g_gamma, g_delta))
 
@@ -499,13 +501,18 @@ class LimeTr:
                     use_constraints=False,
                     use_regularizer=False,
                     use_uprior=False,
-                    use_gprior=False):
+                    use_gprior=False,
+                    know_obs_std=True):
         m = 10
         n = [5]*m
         N = sum(n)
         k_beta = 3
         k_gamma = 2
-        k = k_beta + k_gamma
+        if know_obs_std:
+            k_delta = 0
+        else:
+            k_delta = m
+        k = k_beta + k_gamma + k_delta
 
         beta_t = np.random.randn(k_beta)
         gamma_t = np.random.rand(k_gamma)*0.09 + 0.01
@@ -569,6 +576,9 @@ class LimeTr:
             inlier_percentage = 0.9
         else:
             inlier_percentage = 1.0
+
+        if not know_obs_std:
+            S = None
 
         return cls(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
                    C=C, JC=JC, c=c,
