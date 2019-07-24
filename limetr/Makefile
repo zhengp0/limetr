@@ -1,4 +1,10 @@
 # make file for the fortran module
 
-futils: utils.f90
-	f2py -c -m futils utils.f90 -L/usr/local/lib -llapack -lblas
+.PHONY: clean
+
+special_mat: special_mat.f90
+	f2py -c -m special_mat special_mat.f90 -L/usr/local/lib -llapack -lblas
+
+clean:
+	find . -name '__pycache__' | xargs rm -rf
+	find . -name '*.so' | xargs rm -rf

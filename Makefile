@@ -1,5 +1,6 @@
 # make file for pynlme class
 
+.PHONY: clean, tests
 
 build: setup.py
 	python setup.py build
@@ -10,7 +11,7 @@ install: setup.py
 sdist: setup.py
 	python setup.py sdist
 
-test:
+tests:
 	python tests/check_utils.py
 	python tests/check_limetr.py
 

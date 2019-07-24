@@ -18,10 +18,21 @@ def run_test(name):
 
 
 fun_list = [
-    'utils_varmat_dot',
-    'utils_varmat_invDot',
-    'utils_varmat_logDet',
-    'utils_projCappedSimplex'
+    'izmat_lsvd',
+    'izmat_zdecomp',
+    'izmat_block_izmv',
+    'izmat_izmv',
+    'izmat_block_izmm',
+    'izmat_izmm',
+    'izmat_izeig',
+    'izmat_block_izdiag',
+    'izmat_izdiag',
+    'varmat_dot',
+    'varmat_invDot',
+    'varmat_diag',
+    'varmat_invDiag',
+    'varmat_logDet',
+    'projCappedSimplex'
 ]
 
 error_count = 0

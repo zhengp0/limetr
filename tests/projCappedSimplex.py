@@ -1,7 +1,7 @@
 # test function dot
 
 
-def utils_projCappedSimplex():
+def projCappedSimplex():
     import numpy as np
     from limetr.utils import projCappedSimplex
 

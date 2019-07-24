@@ -7,7 +7,7 @@ from limetr import utils
 
 class LimeTr:
     def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z,
-                 S=None, share_std=False,
+                 S=None, share_obs_std=False,
                  C=None, JC=None, c=None,
                  H=None, JH=None, h=None,
                  uprior=None, gprior=None, lprior=None,
@@ -22,7 +22,7 @@ class LimeTr:
         if S is not None:
             self.std_flag = 0
             self.k_delta = 0
-        elif share_std:
+        elif share_obs_std:
             self.std_flag = 1
             self.k_delta = 1
         else:
@@ -33,8 +33,8 @@ class LimeTr:
         self.k_total = self.k
 
         self.idx_beta = slice(0, self.k_beta)
-        self.idx_gamma = slice(self.k_beta, self.k_beta + self.gamma)
-        self.idx_delta = slice(self.k_beta + self.gamma, self.k)
+        self.idx_gamma = slice(self.k_beta, self.k_beta + self.k_gamma)
+        self.idx_delta = slice(self.k_beta + self.k_gamma, self.k)
         self.idx_split = np.cumsum(np.insert(n, 0, 0))[:-1]
 
         # pass in the data
@@ -344,10 +344,11 @@ class LimeTr:
         if self.std_flag == 0:
             g_delta = np.array([])
         elif self.std_flag == 1:
-            g_delta = 
+            g_delta = -np.sum(DR**2) + np.sum(D.invDiag())
         elif self.std_flag == 2:
+            g_delta = np.add.reduceat(-DR**2 + D.invDiag(), self.idx_split)
 
-        g = np.hstack((g_beta, g_gamma))
+        g = np.hstack((g_beta, g_gamma, g_delta))
 
         # add gradient from the regularizer
         if self.use_regularizer:
@@ -398,7 +399,7 @@ class LimeTr:
 
     def optimize(self, x0=None, print_level=0, max_iter=100):
         if x0 is None:
-            x0 = np.hstack((self.beta, self.gamma))
+            x0 = np.hstack((self.beta, self.gamma, self.delta))
             if self.use_lprior:
                 x0 = np.hstack((x0, np.zeros(self.k)))
 
@@ -569,7 +570,7 @@ class LimeTr:
         else:
             inlier_percentage = 1.0
 
-        return cls(n, k_beta, k_gamma, Y, F, JF, Z, S,
+        return cls(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
                    C=C, JC=JC, c=c,
                    H=H, JH=JH, h=h,
                    uprior=uprior, gprior=gprior,
@@ -604,7 +605,7 @@ class LimeTr:
         uprior = np.array([[-np.inf]*k_beta + [0.0], [np.inf]*k_beta + [0.0]])
         lprior = np.array([[0.0]*k, [np.sqrt(2.0)/weight]*k])
 
-        return cls(n, k_beta, k_gamma, Y, F, JF, Z, S,
+        return cls(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
                    uprior=uprior, lprior=lprior)
 
     @staticmethod
