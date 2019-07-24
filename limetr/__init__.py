@@ -426,6 +426,7 @@ class LimeTr:
         self.info = info
         self.beta = soln[self.idx_beta]
         self.gamma = soln[self.idx_gamma]
+        self.delta = soln[self.idx_delta]
 
     def fitModel(self, x0=None,
                  inner_print_level=0,
