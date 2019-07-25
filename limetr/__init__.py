@@ -471,6 +471,25 @@ class LimeTr:
 
         return self.beta, self.gamma, self.w
 
+    def estimateRE(self):
+        """
+        estimate random effect after fitModel
+        """
+        if self.soln is None:
+            print('Please fit the model first.')
+            return None
+
+        R = self.Y - self.F(self.beta)
+        r = np.split(R, np.cumsum(self.n)[:-1])
+        z = np.split(self.Z, np.cumsum(self.n)[:-1], axis=0)
+
+        u = [np.linalg.solve(z[i].T.dot(z[i]), z[i].T.dot(r[i]))
+             for i in range(self.m)]
+
+        self.u = np.vstack(u)
+
+        return self.u
+
     def simulateData(self, beta_t, gamma_t, sim_prior=True):
         # sample random effects and measurement error
         varmat = utils.VarMat(self.V, self.Z, gamma_t, self.n)
