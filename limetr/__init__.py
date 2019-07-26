@@ -366,11 +366,17 @@ class LimeTr:
         if self.std_flag == 0:
             g_delta = np.array([])
         elif self.std_flag == 1:
-            g_delta = 0.5*np.array([-np.sum(DR**2) + np.sum(D.invDiag())])
+            d = -DR**2 + D.invDiag()
+            if self.use_trimming:
+                v = np.repeat(delta[0], self.N)**self.w
+                d *= self.w*(v**(self.w - 1.0))
+            g_delta = 0.5*np.array([-np.sum(d)])
         elif self.std_flag == 2:
-            g_delta = 0.5*(
-                np.add.reduceat(-DR**2 + D.invDiag(), self.idx_split)
-                )
+            d = -DR**2 + D.invDiag()
+            if self.use_trimming:
+                v = np.repeat(delta, self.n)
+                d *= self.w*(v**(self.w - 1.0))
+            g_delta = 0.5*(np.add.reduceat(d, self.idx_split))
 
         g = np.hstack((g_beta, g_gamma, g_delta))
 

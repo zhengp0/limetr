@@ -8,7 +8,8 @@ def limetr_gradient():
     ok = True
     # setup test problem
     # -------------------------------------------------------------------------
-    model = LimeTr.testProblem(use_constraints=True,
+    model = LimeTr.testProblem(use_trimming=True,
+                               use_constraints=True,
                                use_regularizer=True,
                                use_uprior=True,
                                use_gprior=True,
