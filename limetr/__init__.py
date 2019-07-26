@@ -12,6 +12,28 @@ class LimeTr:
                  H=None, JH=None, h=None,
                  uprior=None, gprior=None, lprior=None,
                  inlier_percentage=1.0):
+        """
+        Create LimeTr object, for general mixed effects model
+
+        Parameters
+        ----------
+        n : ndarray
+            study sizes, n[i] is the number of observation for ith study.
+        k_beta : int
+            dimension of beta
+        k_gamma : int
+            dimension of gamma
+        Y : ndarray
+            study observations
+        F : function
+            return the predict observations given beta
+        JF : function
+            return the jacobian function of F
+        Z : ndarray
+            covariates matrix for the random effect
+        S : optional, ndarray
+            observation standard deviation
+        """
         # pass in the dimension
         self.n = np.array(n)
         self.m = len(n)
