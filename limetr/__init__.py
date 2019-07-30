@@ -400,9 +400,9 @@ class LimeTr:
         if self.std_flag == 0:
             V = self.V
         elif self.std_flag == 1:
-            V = np.repeat(delta[0], self.N)
+            V = np.repeat(self.delta[0], self.N)
         elif self.std_flag == 2:
-            V = np.repeat(delta, self.n)
+            V = np.repeat(self.delta, self.n)
         d = v + t
 
         val = 0.5*np.sum(r**2*w/d)
@@ -427,9 +427,9 @@ class LimeTr:
         if self.std_flag == 0:
             V = self.V
         elif self.std_flag == 1:
-            V = np.repeat(delta[0], self.N)
+            V = np.repeat(self.delta[0], self.N)
         elif self.std_flag == 2:
-            V = np.repeat(delta, self.n)
+            V = np.repeat(self.delta, self.n)
         d = v + t
 
         g = 0.5*r/d
