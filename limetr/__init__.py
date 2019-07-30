@@ -397,7 +397,12 @@ class LimeTr:
     def objectiveTrimming(self, w):
         t = (self.Z**2).dot(self.gamma)
         r = self.Y - self.F(self.beta)
-        v = self.V
+        if self.std_flag == 0:
+            V = self.V
+        elif self.std_flag == 1:
+            V = np.repeat(delta[0], self.N)
+        elif self.std_flag == 2:
+            V = np.repeat(delta, self.n)
         d = v + t
 
         val = 0.5*np.sum(r**2*w/d)
@@ -419,7 +424,12 @@ class LimeTr:
 
         t = (self.Z**2).dot(self.gamma)
         r = (self.Y - self.F(self.beta))**2
-        v = self.V
+        if self.std_flag == 0:
+            V = self.V
+        elif self.std_flag == 1:
+            V = np.repeat(delta[0], self.N)
+        elif self.std_flag == 2:
+            V = np.repeat(delta, self.n)
         d = v + t
 
         g = 0.5*r/d
@@ -427,7 +437,7 @@ class LimeTr:
 
         return g
 
-    def optimize(self, x0=None, print_level=0, max_iter=100):
+    def optimize(self, x0=None, print_level=0, max_iter=100, tol=1e-8):
         if x0 is None:
             x0 = np.hstack((self.beta, self.gamma, self.delta))
             if self.use_lprior:
@@ -447,6 +457,7 @@ class LimeTr:
 
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)
+        opt_problem.addOption('tol', tol)
 
         soln, info = opt_problem.solve(x0)
 
@@ -459,6 +470,7 @@ class LimeTr:
     def fitModel(self, x0=None,
                  inner_print_level=0,
                  inner_max_iter=20,
+                 inner_tol=1e-8,
                  outer_verbose=False,
                  outer_max_iter=100,
                  outer_step_size=1.0,
@@ -479,7 +491,8 @@ class LimeTr:
         while err >= outer_tol:
             self.optimize(x0=self.soln,
                           print_level=inner_print_level,
-                          max_iter=inner_max_iter)
+                          max_iter=inner_max_iter,
+                          tol=inner_tol)
             w_new = utils.projCappedSimplex(
                         self.w - outer_step_size*self.gradientTrimming(self.w),
                         self.num_inliers)
