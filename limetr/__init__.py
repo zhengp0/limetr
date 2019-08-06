@@ -479,7 +479,7 @@ class LimeTr:
         if not self.use_trimming:
             self.optimize(x0=x0,
                           print_level=inner_print_level,
-                          max_iter=inner_max_iter*outer_max_iter)
+                          max_iter=inner_max_iter)
 
             return self.beta, self.gamma, self.w
 
