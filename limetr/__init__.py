@@ -398,11 +398,11 @@ class LimeTr:
         t = (self.Z**2).dot(self.gamma)
         r = self.Y - self.F(self.beta)
         if self.std_flag == 0:
-            V = self.V
+            v = self.V
         elif self.std_flag == 1:
-            V = np.repeat(self.delta[0], self.N)
+            v = np.repeat(self.delta[0], self.N)
         elif self.std_flag == 2:
-            V = np.repeat(self.delta, self.n)
+            v = np.repeat(self.delta, self.n)
         d = v + t
 
         val = 0.5*np.sum(r**2*w/d)
@@ -425,11 +425,11 @@ class LimeTr:
         t = (self.Z**2).dot(self.gamma)
         r = (self.Y - self.F(self.beta))**2
         if self.std_flag == 0:
-            V = self.V
+            v = self.V
         elif self.std_flag == 1:
-            V = np.repeat(self.delta[0], self.N)
+            v = np.repeat(self.delta[0], self.N)
         elif self.std_flag == 2:
-            V = np.repeat(self.delta, self.n)
+            v = np.repeat(self.delta, self.n)
         d = v + t
 
         g = 0.5*r/d
@@ -458,6 +458,8 @@ class LimeTr:
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)
         opt_problem.addOption('tol', tol)
+        opt_problem.addOption('bound_push', 1e-15)
+        opt_problem.addOption('bound_frac', 1e-15)
 
         soln, info = opt_problem.solve(x0)
 
@@ -533,13 +535,11 @@ class LimeTr:
 
     def simulateData(self, beta_t, gamma_t, sim_prior=True):
         # sample random effects and measurement error
-        varmat = utils.VarMat(self.V, self.Z, gamma_t, self.n)
-        D_blocks = varmat.varMatBlocks()
-        u = [np.random.multivariate_normal(np.zeros(self.n[i]), D_blocks[i])
-             for i in range(self.m)]
-        U = np.hstack(u)
+        u = np.random.randn(self.m, self.k_gamma)*np.sqrt(gamma_t)
+        U = np.repeat(u, self.n, axis=0)
+        ZU = np.sum(Z*U, axis=1)
 
-        self.Y = self.F(beta_t) + U
+        self.Y = self.F(beta_t) + ZU
 
         if sim_prior:
             if self.use_gprior:
@@ -688,6 +688,8 @@ class LimeTr:
         gamma_t = lt.gamma.copy()
 
         lt_copy = deepcopy(lt)
+
+        lt_copy.uprior[:, lt_copy.idx_gamma] = np.vstack((lt.gamma, lt.gamma))
 
         for i in range(sample_size):
             lt_copy.simulateData(beta_t, gamma_t)
