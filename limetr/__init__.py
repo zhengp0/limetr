@@ -458,8 +458,8 @@ class LimeTr:
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)
         opt_problem.addOption('tol', tol)
-        opt_problem.addOption('bound_push', 1e-15)
-        opt_problem.addOption('bound_frac', 1e-15)
+        # opt_problem.addOption('bound_push', 1e-15)
+        # opt_problem.addOption('bound_frac', 1e-15)
 
         soln, info = opt_problem.solve(x0)
 
