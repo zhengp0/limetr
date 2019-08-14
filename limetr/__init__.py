@@ -537,7 +537,7 @@ class LimeTr:
         # sample random effects and measurement error
         u = np.random.randn(self.m, self.k_gamma)*np.sqrt(gamma_t)
         U = np.repeat(u, self.n, axis=0)
-        ZU = np.sum(Z*U, axis=1)
+        ZU = np.sum(self.Z*U, axis=1)
 
         self.Y = self.F(beta_t) + ZU
 
