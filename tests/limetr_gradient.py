@@ -13,7 +13,8 @@ def limetr_gradient():
                                use_regularizer=True,
                                use_uprior=True,
                                use_gprior=True,
-                               know_obs_std=False)
+                               know_obs_std=False,
+                               share_obs_std=True)
 
     tol = 1e-6
 

@@ -368,9 +368,9 @@ class LimeTr:
         elif self.std_flag == 1:
             d = -DR**2 + D.invDiag()
             if self.use_trimming:
-                v = np.repeat(delta[0], self.N)**self.w
+                v = np.repeat(delta[0], self.N)
                 d *= self.w*(v**(self.w - 1.0))
-            g_delta = 0.5*np.array([-np.sum(d)])
+            g_delta = 0.5*np.array([np.sum(d)])
         elif self.std_flag == 2:
             d = -DR**2 + D.invDiag()
             if self.use_trimming:
@@ -476,7 +476,8 @@ class LimeTr:
                  outer_verbose=False,
                  outer_max_iter=100,
                  outer_step_size=1.0,
-                 outer_tol=1e-6):
+                 outer_tol=1e-6,
+                 normalize_trimming_grad=False):
 
         if not self.use_trimming:
             self.optimize(x0=x0,
@@ -495,8 +496,12 @@ class LimeTr:
                           print_level=inner_print_level,
                           max_iter=inner_max_iter,
                           tol=inner_tol)
+
+            w_grad = self.gradientTrimming(self.w)
+            if normalize_trimming_grad:
+                w_grad /= np.linalg.norm(w_grad)
             w_new = utils.projCappedSimplex(
-                        self.w - outer_step_size*self.gradientTrimming(self.w),
+                        self.w - outer_step_size*w_grad,
                         self.num_inliers)
 
             err = np.linalg.norm(w_new - self.w)/outer_step_size
@@ -572,7 +577,8 @@ class LimeTr:
                     use_regularizer=False,
                     use_uprior=False,
                     use_gprior=False,
-                    know_obs_std=True):
+                    know_obs_std=True,
+                    share_obs_std=False):
         m = 10
         n = [5]*m
         N = sum(n)
@@ -580,6 +586,8 @@ class LimeTr:
         k_gamma = 2
         if know_obs_std:
             k_delta = 0
+        elif share_obs_std:
+            k_delta = 1
         else:
             k_delta = m
         k = k_beta + k_gamma + k_delta
@@ -654,7 +662,8 @@ class LimeTr:
                    C=C, JC=JC, c=c,
                    H=H, JH=JH, h=h,
                    uprior=uprior, gprior=gprior,
-                   inlier_percentage=inlier_percentage)
+                   inlier_percentage=inlier_percentage,
+                   share_obs_std=share_obs_std)
 
     @classmethod
     def testProblemLasso(cls):
