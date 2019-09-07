@@ -21,6 +21,7 @@ def varmat_dot():
     my_Y = mat.dot(X)
 
     err = np.linalg.norm(tr_y - my_y) + np.linalg.norm(tr_Y - my_Y)
+    ok = ok and err < tol
 
     if not ok:
         print('err in dot')

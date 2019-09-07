@@ -16,6 +16,7 @@ def varmat_logDet():
     my_y = mat.logDet()
 
     err = np.linalg.norm(tr_y - my_y)
+    ok = ok and err < tol
 
     if not ok:
         print('err in logDet')

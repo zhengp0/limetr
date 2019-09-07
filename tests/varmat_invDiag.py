@@ -17,6 +17,7 @@ def varmat_invDiag():
     my_y = mat.invDiag()
 
     err = np.linalg.norm(tr_y - my_y)
+    ok = ok and err < tol
 
     if not ok:
         print('err in invDiag')

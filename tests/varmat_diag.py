@@ -17,6 +17,7 @@ def varmat_diag():
     my_y = mat.diag()
 
     err = np.linalg.norm(tr_y - my_y)
+    ok = ok and err < tol
 
     if not ok:
         print('err in diag')
