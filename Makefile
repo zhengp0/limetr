@@ -6,6 +6,7 @@ build: setup.py
 	python setup.py build
 
 install: setup.py
+	python check_requirements.py
 	python setup.py install
 
 sdist: setup.py
@@ -22,3 +23,7 @@ clean:
 	find . -name "build" | xargs rm -rf
 	find . -name "dist" | xargs rm -rf
 	find . -name "MANIFEST" | xargs rm -rf
+	rm -rf ./lib
+
+uninstall:
+	find $(CONDA_PREFIX)/lib/ -name "*limetr*" | xargs rm -rf
