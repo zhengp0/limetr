@@ -9,10 +9,10 @@ custom_lib_loc <- "/home/j/temp/reed/prog/R_libraries/"
 
 library(metafor, lib.loc = custom_lib_loc)
 library(robumeta, lib.loc = custom_lib_loc)
-library(metaplus, lib.loc = "/home/j/temp/reed/prog/R_libraries/")
+library(metaplus, lib.loc = custom_lib_loc)
 library(clubSandwich, lib.loc = custom_lib_loc)
-library(robustlmm, lib.loc = "/home/j/temp/reed/prog/R_libraries/")
-library(heavy, lib.loc = "/home/j/temp/reed/prog/R_libraries/")
+library(robustlmm, lib.loc = custom_lib_loc)
+library(heavy, lib.loc = custom_lib_loc)
 library(lme4)
 library(dplyr)
 
