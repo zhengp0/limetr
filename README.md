@@ -2,7 +2,7 @@
 
 LimeTr is a python package for fitting complex mixed-effects models with
 noisy data. This specific branch is created to reproduce the results in the
-corresponding paper.
+[paper](https://arxiv.org/abs/1909.10700).
 
 ## Installing
 This packages require [conda](https://docs.conda.io/en/latest/) python
