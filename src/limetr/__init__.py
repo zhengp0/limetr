@@ -250,6 +250,8 @@ class LimeTr:
         gamma = x[self.idx_gamma]
         delta = x[self.idx_delta]
 
+        gamma[gamma <= 0.0] = 0.0
+
         # trimming option
         if self.use_trimming:
             sqrt_w = np.sqrt(self.w)
@@ -320,6 +322,8 @@ class LimeTr:
         beta = x[self.idx_beta]
         gamma = x[self.idx_gamma]
         delta = x[self.idx_delta]
+
+        gamma[gamma <= 0.0] = 0.0
 
         # trimming option
         if self.use_trimming:
@@ -589,6 +593,78 @@ class LimeTr:
                 self.hm = np.zeros(self.num_regularizer)
                 self.hm[valid_id] = self.h[0][valid_id] +\
                     np.random.randn(valid_num)*self.h[1][valid_id]
+
+    def degree_of_freedom(self):
+        """Compute the degree of freedom of the model
+        only considered in term of beta
+        """
+        if self.soln is None:
+            print("Please fit the data first.")
+
+        if self.use_trimming:
+            sqrt_w = np.sqrt(self.w)
+            sqrt_W = sqrt_w.reshape(self.N, 1)
+            F_beta = self.F(self.beta)*sqrt_w
+            JF_beta = self.JF(self.beta)*sqrt_W
+            Y = self.Y*sqrt_w
+            Z = self.Z*sqrt_W
+            if self.std_flag == 0:
+                V = self.V**self.w
+            elif self.std_flag == 1:
+                V = np.repeat(delta[0], self.N)**self.w
+            elif self.std_flag == 2:
+                V = np.repeat(delta, self.n)**self.w
+        else:
+            F_beta = self.F(self.beta)
+            JF_beta = self.JF(self.beta)
+            Y = self.Y
+            Z = self.Z
+            if self.std_flag == 0:
+                V = self.V
+            elif self.std_flag == 1:
+                V = np.repeat(delta[0], self.N)
+            elif self.std_flag == 2:
+                V = np.repeat(delta, self.n)
+
+
+        D = utils.VarMat(V, Z, self.gamma, self.n)
+
+        # compute the Hessian matrix
+        hess = JF_beta.T.dot(D.invDot(JF_beta))
+        if self.use_regularizer:
+            JH_beta = self.JH(self.soln)[:, self.idx_beta]
+            hess += (JH_beta.T*self.hw).dot(JH_beta)
+
+        # substract the active constraints
+        lb_beta = self.lb[self.idx_beta]
+        ub_beta = self.ub[self.idx_beta]
+        JC_beta = np.eye(self.k_beta)
+        active_id = (np.abs(self.beta - lb_beta) < 1e-7) |\
+            (np.abs(self.beta - ub_beta) < 1e-7)
+        if np.any(active_id):
+            JC_beta = JC_beta[active_id]
+        else:
+            JC_beta = np.array([]).reshape(0, self.k_beta)
+
+        if self.use_constraints:
+            JC_beta_more = self.JC(self.soln)[:, self.idx_beta]
+            active_id = (np.abs(self.C(self.soln) - self.cl) < 1e-7) |\
+                (np.abs(self.C(self.soln) - self.cu) < 1e-7)
+
+            if np.any(active_id):
+                JC_beta_more = JC_beta_more[active_id]
+            else:
+                JC_beta_more = np.array([]).reshape(0, self.k_beta)
+            JC_beta = np.vstack((JC_beta, JC_beta_more))
+
+        if JC_beta.size != 0:
+            cw = np.repeat(1e15, JC_beta.shape[0])
+            hess += (JC_beta.T*cw).dot(JC_beta)
+
+        hat_mat = JF_beta.dot(np.linalg.inv(hess)).dot(D.invDot(JF_beta).T)
+        df = np.trace(hat_mat)
+
+        return df
 
     @classmethod
     def testProblem(cls,
