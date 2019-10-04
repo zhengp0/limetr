@@ -661,7 +661,7 @@ class LimeTr:
             cw = np.repeat(1e15, JC_beta.shape[0])
             hess += (JC_beta.T*cw).dot(JC_beta)
 
-        hat_mat = JF_beta.dot(np.linalg.inv(hess)).dot(D.invDot(JF_beta).T)
+        hat_mat = JF_beta.dot(np.linalg.pinv(hess)).dot(D.invDot(JF_beta).T)
         df = np.trace(hat_mat)
 
         return df
