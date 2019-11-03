@@ -211,7 +211,15 @@ class VarMat:
         return np.linalg.inv(np.diag(v) + (z*gamma).dot(z.T))
 
 
-def projCappedSimplex(w, w_sum):
+def projCappedSimplex(w, w_sum, active_id=None):
+    N = w.size
+    if active_id is None:
+        active_id = np.arange(N)
+
+    w_all = np.ones(N)
+    w = w[active_id]
+    w_sum = w_sum - (N - active_id.size)
+
     a = np.min(w) - 1.0
     b = np.max(w) - 0.0
 
@@ -220,4 +228,6 @@ def projCappedSimplex(w, w_sum):
 
     x = bisect(f, a, b)
 
-    return np.maximum(np.minimum(w - x, 1.0), 0.0)
+    w = np.maximum(np.minimum(w - x, 1.0), 0.0)
+    w_all[active_id] = w
+    return w_all
