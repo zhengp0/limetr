@@ -824,7 +824,7 @@ class LimeTr:
 
         for i in range(sample_size):
             lt_copy.simulateData(beta_t, gamma_t)
-            lt_copy.optimize(x0=np.hstack((beta_t, gamma_t))
+            lt_copy.optimize(x0=np.hstack((beta_t, gamma_t)),
                              print_level=print_level,
                              max_iter=max_iter)
 
