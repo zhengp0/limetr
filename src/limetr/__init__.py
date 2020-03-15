@@ -821,7 +821,7 @@ class LimeTr:
         gamma_t = lt.gamma.copy()
 
         lt_copy = deepcopy(lt)
-        lt_copy.uprior[:, lt.k_beta:] = np.vstack((gamma_t, gamm_t))
+        lt_copy.uprior[:, lt.k_beta:] = np.vstack((gamma_t, gamma_t))
 
         for i in range(sample_size):
             lt_copy.simulateData(beta_t, gamma_t)
@@ -832,7 +832,10 @@ class LimeTr:
             u_samples = lt_copy.estimateRE()
 
             beta_samples[i] = lt_copy.beta.copy()
-            gamma_samples[i] = np.var(u_samples, axis=0)
+            gamma_samples[i] = np.maximum(
+                lt.uprior[0, lt.k_beta:],
+                np.minimum(lt.uprior[1, lt.k_beta:], np.var(u_samples, axis=0))
+            )
 
             print('sampling solution progress %0.2f' % ((i + 1)/sample_size),
                   end='\r')
