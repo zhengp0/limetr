@@ -574,9 +574,15 @@ class LimeTr:
 
         return self.u
 
-    def simulateData(self, beta_t, gamma_t, sim_prior=True):
+    def simulateData(self, beta_t, gamma_t, sim_prior=True, sim_re=True):
         # sample random effects and measurement error
-        u = np.random.randn(self.m, self.k_gamma)*np.sqrt(gamma_t)
+        if sim_re:
+            u = np.random.randn(self.m, self.k_gamma)*np.sqrt(gamma_t)
+        else:
+            if not hasattr(self, 'u'):
+                self.estimateRE()
+            u = self.u
+
         U = np.repeat(u, self.n, axis=0)
         ZU = np.sum(self.Z*U, axis=1)
 
@@ -806,7 +812,8 @@ class LimeTr:
                    uprior=uprior, lprior=lprior)
 
     @staticmethod
-    def sampleSoln(lt, sample_size=1, print_level=0, max_iter=100):
+    def sampleSoln(lt, sample_size=1, print_level=0, max_iter=100,
+                   sim_prior=True, sim_re=True):
         beta_samples = np.zeros((sample_size, lt.k_beta))
         gamma_samples = np.zeros((sample_size, lt.k_gamma))
 
@@ -817,7 +824,8 @@ class LimeTr:
         lt_copy.uprior[:, lt.k_beta:] = np.vstack((gamma_t, gamma_t))
 
         for i in range(sample_size):
-            lt_copy.simulateData(beta_t, gamma_t)
+            lt_copy.simulateData(beta_t, gamma_t,
+                                 sim_prior=sim_prior, sim_re=sim_re)
             lt_copy.optimize(x0=np.hstack((beta_t, gamma_t)),
                              print_level=print_level,
                              max_iter=max_iter)
