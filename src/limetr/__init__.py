@@ -188,13 +188,7 @@ class LimeTr:
                 self.H = H_new
                 self.JH = JH_new
 
-            # extend Gaussian and Uniform priors
-            if self.use_gprior:
-                gprior_abs = np.array([[0.0]*self.k, [np.inf]*self.k])
-                self.gprior = np.hstack((self.gprior, gprior_abs))
-                self.gm = self.gprior[0]
-                self.gw = 1.0/self.gprior[1]**2
-
+            # extend Uniform priors
             if self.use_uprior:
                 uprior_abs = np.array([[0.0]*self.k, [np.inf]*self.k])
                 self.uprior = np.hstack((self.uprior, uprior_abs))
@@ -247,7 +241,6 @@ class LimeTr:
             assert np.all(self.lb <= self.ub)
 
         if self.use_gprior:
-            assert self.gprior.shape == (2, self.k)
             assert np.all(self.gprior[1] > 0.0)
 
         assert 0.0 < self.inlier_percentage <= 1.0
@@ -317,7 +310,7 @@ class LimeTr:
             val += 0.5*self.hw.dot((self.H(x) - self.hm)**2)
 
         if self.use_gprior:
-            val += 0.5*self.gw.dot((x - self.gm)**2)
+            val += 0.5*self.gw.dot((x[:self.k] - self.gm)**2)
 
         if self.use_lprior:
             val += self.lw.dot(x[self.k:])
@@ -408,7 +401,7 @@ class LimeTr:
 
         # add gradient from the gprior
         if self.use_gprior:
-            g += (x - self.gm)*self.gw
+            g += (x[:self.k] - self.gm)*self.gw
 
         # add gradient from the lprior
         if self.use_lprior:
