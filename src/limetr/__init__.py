@@ -559,16 +559,19 @@ class LimeTr:
 
         iV = 1.0/S**2
         iVZ = Z*iV.reshape(iV.size, 1)
-        igamma = 1.0/self.gamma
 
         r = np.split(R, np.cumsum(self.n)[:-1])
+        v = np.split(S**2, np.cumsum(self.n)[:-1])
         z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
         ivz = np.split(iVZ, np.cumsum(self.n)[:-1], axis=0)
-        
 
-        u = [np.linalg.solve(ivz[i].T.dot(z[i]) + np.diag(igamma),
-                             ivz[i].T.dot(r[i]))
-             for i in range(self.m)]
+        u = []
+        for i in range(self.m):
+            rhs = ivz[i].T.dot(r[i])
+            tmp = z[i]*self.gamma
+            mat = np.diag(v[i]) + tmp.dot(z[i].T)
+            vec = self.gamma*rhs - tmp.T.dot(np.linalg.solve(mat, tmp.dot(rhs)))
+            u.append(vec)
 
         self.u = np.vstack(u)
 
