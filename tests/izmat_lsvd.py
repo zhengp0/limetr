@@ -32,7 +32,7 @@ def izmat_lsvd():
     my_s = np.zeros(tr_s.size)
     izmat.lsvd(z, my_u, my_s)
 
-    err = np.linalg.norm(my_u.reshape(n, n).T - tr_u)
+    err = np.linalg.norm(np.abs(my_u.reshape(n, n).T) - np.abs(tr_u))
     ok = ok and err < tol
 
     if not ok:
