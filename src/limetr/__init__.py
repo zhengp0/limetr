@@ -452,7 +452,10 @@ class LimeTr:
 
         return g
 
-    def optimize(self, x0=None, print_level=0, max_iter=100, tol=1e-8):
+    def optimize(self, x0=None, print_level=0, max_iter=100, tol=1e-8,
+                 acceptable_tol=1e-6,
+                 nlp_scaling_method=None,
+                 nlp_scaling_min_value=None):
         if x0 is None:
             x0 = np.hstack((self.beta, self.gamma, self.delta))
             if self.use_lprior:
@@ -461,8 +464,8 @@ class LimeTr:
         assert x0.size == self.k_total
 
         opt_problem = ipopt.problem(
-            n=self.k_total,
-            m=self.num_constraints,
+            n=int(self.k_total),
+            m=int(self.num_constraints),
             problem_obj=self,
             lb=self.uprior[0],
             ub=self.uprior[1],
@@ -473,8 +476,11 @@ class LimeTr:
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)
         opt_problem.addOption('tol', tol)
-        # opt_problem.addOption('bound_push', 1e-15)
-        # opt_problem.addOption('bound_frac', 1e-15)
+        opt_problem.addOption('acceptable_tol', acceptable_tol)
+        if nlp_scaling_method is not None:
+            opt_problem.addOption('nlp_scaling_method', nlp_scaling_method)
+        if nlp_scaling_min_value is not None:
+            opt_problem.addOption('nlp_scaling_min_value', nlp_scaling_min_value)
 
         soln, info = opt_problem.solve(x0)
 
@@ -488,6 +494,9 @@ class LimeTr:
                  inner_print_level=0,
                  inner_max_iter=20,
                  inner_tol=1e-8,
+                 inner_acceptable_tol=1e-6,
+                 inner_nlp_scaling_method=None,
+                 inner_nlp_scaling_min_value=None,
                  outer_verbose=False,
                  outer_max_iter=100,
                  outer_step_size=1.0,
@@ -497,7 +506,10 @@ class LimeTr:
         if not self.use_trimming:
             self.optimize(x0=x0,
                           print_level=inner_print_level,
-                          max_iter=inner_max_iter)
+                          max_iter=inner_max_iter,
+                          acceptable_tol=inner_acceptable_tol,
+                          nlp_scaling_method=inner_nlp_scaling_method,
+                          nlp_scaling_min_value=inner_nlp_scaling_min_value)
 
             return self.beta, self.gamma, self.w
 
@@ -510,7 +522,10 @@ class LimeTr:
             self.optimize(x0=self.soln,
                           print_level=inner_print_level,
                           max_iter=inner_max_iter,
-                          tol=inner_tol)
+                          tol=inner_tol,
+                          acceptable_tol=inner_acceptable_tol,
+                          nlp_scaling_method=inner_nlp_scaling_method,
+                          nlp_scaling_min_value=inner_nlp_scaling_min_value)
 
             w_grad = self.gradientTrimming(self.w)
             if normalize_trimming_grad:
