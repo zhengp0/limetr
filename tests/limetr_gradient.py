@@ -12,9 +12,7 @@ def limetr_gradient():
                                use_constraints=True,
                                use_regularizer=True,
                                use_uprior=True,
-                               use_gprior=True,
-                               know_obs_std=False,
-                               share_obs_std=True)
+                               use_gprior=True)
 
     tol = 1e-6
 
@@ -22,7 +20,6 @@ def limetr_gradient():
     # -------------------------------------------------------------------------
     x = np.random.randn(model.k)
     x[model.idx_gamma] = 0.1
-    x[model.idx_delta] = 0.1
 
     tr_grad = model.gradient(x, use_ad=True)
     my_grad = model.gradient(x)

@@ -1,5 +1,13 @@
 from pathlib import Path
-from setuptools import setup, find_packages
+from setuptools import find_packages
+from numpy.distutils.core import setup
+from numpy.distutils.core import Extension
+
+# fortran extension module
+ext = Extension(name='limetr.special_mat',
+                sources=['src/limetr/special_mat.f90'],
+                library_dirs=['./lib'],
+                libraries=['lapack', 'blas'])
 
 
 if __name__ == '__main__':
@@ -40,4 +48,5 @@ if __name__ == '__main__':
               'test': test_requirements,
               'dev': doc_requirements + test_requirements
           },
+          ext_modules=[ext],
           zip_safe=False)

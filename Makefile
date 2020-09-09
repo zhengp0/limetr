@@ -12,7 +12,6 @@ sdist: setup.py
 	python setup.py sdist
 
 tests:
-	python tests/check_utils.py
 	python tests/check_limetr.py
 
 clean:
