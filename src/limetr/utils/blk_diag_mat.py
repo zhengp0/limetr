@@ -30,9 +30,10 @@ class BlockDiagMat:
     def full(self) -> np.ndarray:
         return spla.block_diag(*self.mat_blocks)
 
-    def dot(self, vec: np.ndarray) -> np.ndarray:
-        vecs = split_by_sizes(vec, self.block_col_sizes)
-        return np.hstack([mat.dot(vecs[i]) for i, mat in enumerate(self.mat_blocks)])
+    def dot(self, array: np.ndarray) -> np.ndarray:
+        arrays = split_by_sizes(array, self.block_col_sizes)
+        return np.concatenate([mat.dot(arrays[i])
+                               for i, mat in enumerate(self.mat_blocks)], axis=0)
 
 
 class SquareBlockDiagMat(BlockDiagMat):
@@ -49,9 +50,10 @@ class SquareBlockDiagMat(BlockDiagMat):
         inv_mat_blocks = [np.linalg.inv(mat) for mat in self.mat_blocks]
         return SquareBlockDiagMat(inv_mat_blocks)
 
-    def invdot(self, vec: np.ndarray) -> np.ndarray:
-        vecs = split_by_sizes(vec, self.block_col_sizes)
-        return np.hstack([np.linalg.solve(mat, vecs[i]) for i, mat in enumerate(self.mat_blocks)])
+    def invdot(self, array: np.ndarray) -> np.ndarray:
+        arrays = split_by_sizes(array, self.block_col_sizes)
+        return np.concatenate([np.linalg.solve(mat, arrays[i])
+                               for i, mat in enumerate(self.mat_blocks)], axis=0)
 
     def diag(self) -> np.ndarray:
         return np.hstack([np.diag(mat) for mat in self.mat_blocks])

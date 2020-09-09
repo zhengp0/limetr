@@ -3,6 +3,7 @@ import numpy as np
 import ipopt
 from copy import deepcopy
 from limetr import funs
+from limetr.utils import SquareBlockDiagMat
 
 
 class LimeTr:
@@ -263,21 +264,24 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = funs.VarMat(V, Z, gamma, self.n)
+        v = np.split(V, self.idx_split[1:])
+        z = np.split(Z, self.idx_split[1:], axis=0)
+        # D = funs.VarMat(V, Z, gamma, self.n)
+        D = SquareBlockDiagMat([(z[i]*gamma).dot(z[i].T) + np.diag(v[i])
+                                for i in range(self.m)])
 
         val = 0.5*self.N*np.log(2.0*np.pi)
 
         if use_ad:
             # should only use when testing
             varmat = D
-            D = varmat.varMat()
-            inv_D = varmat.invVarMat()
-
+            D = varmat.full()
+            inv_D = np.linalg.inv(D)
             val += 0.5*np.log(np.linalg.det(D))
             val += 0.5*R.dot(inv_D.dot(R))
         else:
-            val += 0.5*D.logDet()
-            val += 0.5*R.dot(D.invDot(R))
+            val += 0.5*D.logdet()
+            val += 0.5*R.dot(D.invdot(R))
 
         # add gpriors
         if self.use_regularizer:
@@ -327,14 +331,18 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = funs.VarMat(V, Z, gamma, self.n)
+        v = np.split(V, self.idx_split[1:])
+        z = np.split(Z, self.idx_split[1:], axis=0)
+        # D = funs.VarMat(V, Z, gamma, self.n)
+        D = SquareBlockDiagMat([(z[i]*gamma).dot(z[i].T) + np.diag(v[i])
+                                for i in range(self.m)])
 
         # gradient for beta
-        DR = D.invDot(R)
+        DR = D.invdot(R)
         g_beta = -JF_beta.T.dot(DR)
 
         # gradient for gamma
-        DZ = D.invDot(Z)
+        DZ = D.invdot(Z)
         g_gamma = 0.5*np.sum(Z*DZ, axis=0) -\
             0.5*np.sum(
                 np.add.reduceat(DZ.T*R, self.idx_split, axis=1)**2,
@@ -556,67 +564,6 @@ class LimeTr:
                 self.hm[valid_id] = self.h[0][valid_id] +\
                     np.random.randn(valid_num)*self.h[1][valid_id]
 
-    def degree_of_freedom(self):
-        """Compute the degree of freedom of the model
-        only considered in term of beta
-        """
-        if self.soln is None:
-            print("Please fit the data first.")
-
-        if self.use_trimming:
-            sqrt_w = np.sqrt(self.w)
-            sqrt_W = sqrt_w.reshape(self.N, 1)
-            F_beta = self.F(self.beta)*sqrt_w
-            JF_beta = self.JF(self.beta)*sqrt_W
-            Y = self.Y*sqrt_w
-            Z = self.Z*sqrt_W
-            V = self.V**self.w
-        else:
-            F_beta = self.F(self.beta)
-            JF_beta = self.JF(self.beta)
-            Y = self.Y
-            Z = self.Z
-            V = self.V
-
-
-        D = funs.VarMat(V, Z, self.gamma, self.n)
-
-        # compute the Hessian matrix
-        hess = JF_beta.T.dot(D.invDot(JF_beta))
-        if self.use_regularizer:
-            JH_beta = self.JH(self.soln)[:, self.idx_beta]
-            hess += (JH_beta.T*self.hw).dot(JH_beta)
-
-        # substract the active constraints
-        lb_beta = self.lb[self.idx_beta]
-        ub_beta = self.ub[self.idx_beta]
-        JC_beta = np.eye(self.k_beta)
-        active_id = (np.abs(self.beta - lb_beta) < 1e-7) |\
-            (np.abs(self.beta - ub_beta) < 1e-7)
-        if np.any(active_id):
-            JC_beta = JC_beta[active_id]
-        else:
-            JC_beta = np.array([]).reshape(0, self.k_beta)
-
-        if self.use_constraints:
-            JC_beta_more = self.JC(self.soln)[:, self.idx_beta]
-            active_id = (np.abs(self.C(self.soln) - self.cl) < 1e-7) |\
-                (np.abs(self.C(self.soln) - self.cu) < 1e-7)
-
-            if np.any(active_id):
-                JC_beta_more = JC_beta_more[active_id]
-            else:
-                JC_beta_more = np.array([]).reshape(0, self.k_beta)
-            JC_beta = np.vstack((JC_beta, JC_beta_more))
-
-        if JC_beta.size != 0:
-            cw = np.repeat(1e15, JC_beta.shape[0])
-            hess += (JC_beta.T*cw).dot(JC_beta)
-
-        hat_mat = JF_beta.dot(np.linalg.pinv(hess)).dot(D.invDot(JF_beta).T)
-        df = np.trace(hat_mat)
-
-        return df
 
     @classmethod
     def testProblem(cls,
