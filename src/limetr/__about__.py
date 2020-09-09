@@ -3,7 +3,7 @@ __all__ = [
     "__email__", "__license__", "__copyright__",
 ]
 
-__title__ = "episeries"
+__title__ = "limetr"
 __summary__ = "limetr: linear mixed effects model with trimming."
 __uri__ = "https://github.com/zhengp0/limetr"
 

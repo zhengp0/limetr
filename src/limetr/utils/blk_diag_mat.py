@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import List, Any
 import numpy as np
 import scipy.linalg as spla
+from .helper_funs import split_by_sizes
 
 
 class BlockDiagMat:
@@ -55,16 +56,11 @@ class SquareBlockDiagMat(BlockDiagMat):
     def diag(self) -> np.ndarray:
         return np.hstack([np.diag(mat) for mat in self.mat_blocks])
 
-    def eigvals(self) -> np.ndarray:
+    def block_eigvals(self) -> np.ndarray:
         return np.hstack([np.linalg.eigvals(mat) for mat in self.mat_blocks])
 
     def det(self) -> Any:
-        return np.prod(self.eigvals())
+        return np.prod(self.block_eigvals())
 
     def logdet(self) -> Any:
-        return np.sum(np.log(self.eigvals()))
-
-
-def split_by_sizes(vec: np.ndarray, sizes: List[int]) -> List[np.ndarray]:
-    assert len(vec) == sum(sizes)
-    return np.split(vec, np.cumsum(sizes)[:-1])
+        return np.sum(np.log(self.block_eigvals()))
