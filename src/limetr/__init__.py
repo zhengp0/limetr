@@ -266,7 +266,6 @@ class LimeTr:
         R = Y - F_beta
         v = np.split(V, self.idx_split[1:])
         z = np.split(Z, self.idx_split[1:], axis=0)
-        # D = funs.VarMat(V, Z, gamma, self.n)
         D = SquareBlockDiagMat([(z[i]*gamma).dot(z[i].T) + np.diag(v[i])
                                 for i in range(self.m)])
 
@@ -333,7 +332,6 @@ class LimeTr:
         R = Y - F_beta
         v = np.split(V, self.idx_split[1:])
         z = np.split(Z, self.idx_split[1:], axis=0)
-        # D = funs.VarMat(V, Z, gamma, self.n)
         D = SquareBlockDiagMat([(z[i]*gamma).dot(z[i].T) + np.diag(v[i])
                                 for i in range(self.m)])
 
