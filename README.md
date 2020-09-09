@@ -1,4 +1,4 @@
-# Linear Mixed Effects Model with Trimming
+# LimeTr
 
 This is a Python package solves mixed effects models with linear random effects.
 Moreover the package also provides robust regression option called "trimming".
