@@ -1,7 +1,7 @@
-# test block diagonal matrix in utils module
+# Test linear algebra module
 import numpy as np
 import pytest
-import limetr.utils as utils
+from limetr.linalg import BlockDiagMat, SquareBlockDiagMat
 
 nblocks = 5
 nrows = np.random.randint(1, 5, nblocks)
@@ -10,14 +10,14 @@ ncols = np.random.randint(1, 5, nblocks)
 @pytest.fixture
 def bdmat():
     mat_blocks = [np.random.randn(nrows[i], ncols[i]) for i in range(nblocks)]
-    return utils.BlockDiagMat(mat_blocks)
+    return BlockDiagMat(mat_blocks)
 
 
 @pytest.fixture
 def sbdmat():
     mat_blocks = [np.random.randn(ncols[i], ncols[i]) for i in range(nblocks)]
     mat_blocks = [mat.T.dot(mat) for mat in mat_blocks]
-    return utils.SquareBlockDiagMat(mat_blocks)
+    return SquareBlockDiagMat(mat_blocks)
 
 
 @pytest.mark.parametrize('vec', [np.ones(ncols.sum()),

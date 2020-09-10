@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import List, Any
 import numpy as np
 import scipy.linalg as spla
-from .helper import split_by_sizes
+from limetr.utils import split_by_sizes
 
 
 class BlockDiagMat:

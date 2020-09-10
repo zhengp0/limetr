@@ -2,7 +2,8 @@
 import numpy as np
 import ipopt
 from copy import deepcopy
-from limetr.utils import SquareBlockDiagMat, project_to_capped_simplex
+from limetr.linalg import SquareBlockDiagMat
+from limetr.optim import project_to_capped_simplex
 
 
 class LimeTr:

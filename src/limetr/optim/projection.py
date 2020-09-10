@@ -1,18 +1,12 @@
 """
-    helper_funs
-    ~~~~~~~~~~~
+    projection
+    ~~~~~~~~~~
 
-    Helper functions
+    Collection of projection functions.
 """
-from typing import List, Union
-from warnings import warn
+from typing import Union
 import numpy as np
 import scipy.optimize as spopt
-
-
-def split_by_sizes(array: np.ndarray, sizes: List[int], axis: int = 0) -> List[np.ndarray]:
-    assert array.shape[axis] == sum(sizes)
-    return np.split(array, np.cumsum(sizes)[:-1], axis=axis)
 
 
 def project_to_capped_simplex(weights: np.ndarray, cap: Union[int, float],
