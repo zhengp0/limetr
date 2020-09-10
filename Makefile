@@ -12,7 +12,8 @@ sdist: setup.py
 	python setup.py sdist
 
 tests:
-	python tests/check_limetr.py
+	pytest tests/test*
+	# python tests/check_limetr.py
 
 clean:
 	find . -name "*.so*" | xargs rm -rf
