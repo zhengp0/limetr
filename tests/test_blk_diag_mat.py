@@ -27,11 +27,12 @@ def test_bd_dot(bdmat, vec):
     assert np.allclose(fullmat.dot(vec), bdmat.dot(vec))
 
 
-@pytest.mark.parametrize('vec', [np.ones(ncols.sum()),
-                                 np.random.randn(ncols.sum())])
-def test_sbd_dot(sbdmat, vec):
+@pytest.mark.parametrize('array', [np.ones(ncols.sum()),
+                                   np.random.randn(ncols.sum()),
+                                   np.random.randn(ncols.sum(), 2)])
+def test_sbd_dot(sbdmat, array):
     fullmat = sbdmat.full()
-    assert np.allclose(fullmat.dot(vec), sbdmat.dot(vec))
+    assert np.allclose(fullmat.dot(array), sbdmat.dot(array))
 
 
 def test_sbd_inv(sbdmat):
@@ -41,11 +42,12 @@ def test_sbd_inv(sbdmat):
     assert np.allclose(np.linalg.inv(fullmat), fullinvmat)
 
 
-@pytest.mark.parametrize('vec', [np.ones(ncols.sum()),
-                                 np.random.randn(ncols.sum())])
-def test_sbd_invdot(sbdmat, vec):
+@pytest.mark.parametrize('array', [np.ones(ncols.sum()),
+                                   np.random.randn(ncols.sum()),
+                                   np.random.randn(ncols.sum(), 2)])
+def test_sbd_invdot(sbdmat, array):
     fullinvmat = sbdmat.inv().full()
-    assert np.allclose(fullinvmat.dot(vec), sbdmat.invdot(vec))
+    assert np.allclose(fullinvmat.dot(array), sbdmat.invdot(array))
 
 
 def test_sbd_diag(sbdmat):
