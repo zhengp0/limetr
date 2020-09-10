@@ -22,6 +22,7 @@ clean:
 	find . -name "dist" | xargs rm -rf
 	find . -name "MANIFEST" | xargs rm -rf
 	find . -name "*.egg-info" | xargs rm -rf
+	find . -name ".pytest_cache" | xargs rm -rf
 	rm -rf ./lib
 
 uninstall:
