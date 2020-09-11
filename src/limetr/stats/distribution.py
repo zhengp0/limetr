@@ -5,26 +5,9 @@
     Distribution module.
 """
 from typing import Any, List
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 import numpy as np
-
-
-def default_attr_factory(attr: Any, size: int, default_value: float,
-                         attr_name: str = 'attr') -> np.ndarray:
-    if attr is None:
-        attr = np.repeat(default_value, size)
-    elif np.isscalar(attr):
-        attr = np.repeat(attr, size)
-    else:
-        attr = np.asarray(attr)
-        assert len(attr) == size, f"{attr_name} must be a scalar or has length {size}."
-
-    return attr
-
-
-def isiterable(__obj: object) -> bool:
-    return isinstance(__obj, Iterable)
+from limetr.utils import isiterable, default_attr_factory
 
 
 @dataclass
