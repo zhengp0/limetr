@@ -20,7 +20,7 @@ def limetr_lasso():
     beta[zero_idx] = 0.0
 
     # calculate the gradient
-    g_beta = -model.JF(beta).T.dot(model.Y - model.F(beta))
+    g_beta = -model.F.jac_fun(beta).T.dot(model.Y - model.F.fun(beta))
     for i in range(model.k_beta):
         if beta[i] == 0.0 and np.abs(g_beta[i]) < model.lw[i]:
             g_beta[i] = 0.0
