@@ -1,7 +1,7 @@
 # Test linear algebra module
 import numpy as np
 import pytest
-from limetr.linalg import BlockDiagMat, SquareBlockDiagMat
+import limetr.linalg as linalg
 
 nblocks = 5
 nrows = np.random.randint(1, 5, nblocks)
@@ -10,14 +10,37 @@ ncols = np.random.randint(1, 5, nblocks)
 @pytest.fixture
 def bdmat():
     mat_blocks = [np.random.randn(nrows[i], ncols[i]) for i in range(nblocks)]
-    return BlockDiagMat(mat_blocks)
+    return linalg.BlockDiagMat(mat_blocks)
 
 
 @pytest.fixture
 def sbdmat():
     mat_blocks = [np.random.randn(ncols[i], ncols[i]) for i in range(nblocks)]
     mat_blocks = [mat.T.dot(mat) for mat in mat_blocks]
-    return SquareBlockDiagMat(mat_blocks)
+    return linalg.SquareBlockDiagMat(mat_blocks)
+
+@pytest.fixture
+def smooth_mapping():
+    m = 5
+    n = 2
+    mat1 = np.random.randn(m, n)
+    mat2 = np.random.randn(m, n)
+
+    def fun(x):
+        return np.exp(mat1.dot(x)) - np.exp(mat2.dot(x))
+
+    def jac_fun(x):
+        return (mat1.T*np.exp(mat1.dot(x)) - mat2.T*np.exp(mat2.dot(x))).T
+
+    return linalg.SmoothMapping((m, n), fun, jac_fun)
+
+
+@pytest.fixture
+def linear_mapping():
+    m = 5
+    n = 2
+    mat = np.random.randn(m, n)
+    return linalg.LinearMapping(mat)
 
 
 @pytest.mark.parametrize('vec', [np.ones(ncols.sum()),
@@ -67,3 +90,16 @@ def test_sbd_det(sbdmat):
 def test_sbd_logdet(sbdmat):
     fullmat = sbdmat.full()
     assert np.isclose(np.linalg.slogdet(fullmat)[1], sbdmat.logdet())
+
+
+def test_smooth_mapping(smooth_mapping):
+    x = np.zeros(smooth_mapping.shape[1])
+    assert smooth_mapping.fun(x).size == smooth_mapping.shape[0]
+    assert smooth_mapping.jac_fun(x).shape == smooth_mapping.shape
+
+
+def test_linear_mapping(linear_mapping):
+    x = np.zeros(linear_mapping.shape[1])
+    assert linear_mapping.mat.shape == linear_mapping.shape
+    assert linear_mapping.fun(x).size == linear_mapping.shape[0]
+    assert linear_mapping.jac_fun(x).shape == linear_mapping.shape
