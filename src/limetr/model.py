@@ -8,45 +8,28 @@
 import numpy as np
 import ipopt
 from copy import deepcopy
-from limetr.linalg import SquareBlockDiagMat
+from limetr.linalg import SquareBlockDiagMat, SmoothMapping, LinearMapping
 from limetr.optim import project_to_capped_simplex
 
 
 class LimeTr:
-    def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z, S,
-                 C=None, JC=None, c=None,
-                 H=None, JH=None, h=None,
+    def __init__(self,
+                 n: np.ndarray,
+                 Y: np.ndarray,
+                 F: SmoothMapping,
+                 Z: np.ndarray,
+                 S: np.ndarray,
+                 C: SmoothMapping = None, c=None,
+                 H: SmoothMapping = None, h=None,
                  uprior=None, gprior=None, lprior=None,
                  certain_inlier_id=None,
                  inlier_percentage=1.0):
-        """
-        Create LimeTr object, for general mixed effects model
-
-        Parameters
-        ----------
-        n : ndarray
-            study sizes, n[i] is the number of observation for ith study.
-        k_beta : int
-            dimension of beta
-        k_gamma : int
-            dimension of gamma
-        Y : ndarray
-            study observations
-        F : function
-            return the predict observations given beta
-        JF : function
-            return the jacobian function of F
-        Z : ndarray
-            covariates matrix for the random effect
-        S : optional, ndarray
-            observation standard deviation
-        """
         # pass in the dimension
         self.n = np.array(n)
         self.m = len(n)
         self.N = sum(n)
-        self.k_beta = k_beta
-        self.k_gamma = k_gamma
+        self.k_beta = F.shape[1]
+        self.k_gamma = Z.shape[1]
 
         self.k = self.k_beta + self.k_gamma
         self.k_total = self.k
@@ -58,7 +41,6 @@ class LimeTr:
         # pass in the data
         self.Y = Y
         self.F = F
-        self.JF = JF
         self.Z = Z
         self.S = S
         self.V = S**2
@@ -71,12 +53,11 @@ class LimeTr:
         self.use_lprior = (lprior is not None)
 
         self.C = C
-        self.JC = JC
         self.c = c
         if self.use_constraints:
-            self.constraints = C
-            self.jacobian = JC
-            self.num_constraints = C(np.zeros(self.k)).size
+            self.constraints = self.C.fun
+            self.jacobian = self.C.jac_fun
+            self.num_constraints = self.C.shape[0]
             self.cl = c[0]
             self.cu = c[1]
         else:
@@ -85,10 +66,9 @@ class LimeTr:
             self.cu = []
 
         self.H = H
-        self.JH = JH
         self.h = h
         if self.use_regularizer:
-            self.num_regularizer = H(np.zeros(self.k)).size
+            self.num_regularizer = self.H.shape[0]
             self.hm = self.h[0]
             self.hw = 1.0/self.h[1]**2
         else:
@@ -125,7 +105,7 @@ class LimeTr:
                     v = x[:self.k]
                     v_abs = x[self.k:]
 
-                    vec1 = C(v)
+                    vec1 = self.C.fun(v)
                     vec2 = np.hstack((v_abs - (v - self.lm),
                                       v_abs + (v - self.lm)))
 
@@ -136,7 +116,7 @@ class LimeTr:
                     v_abs = x[self.k:]
                     Id = np.eye(self.k)
 
-                    mat1 = JC(v)
+                    mat1 = self.C.jac_fun(v)
                     mat2 = np.block([[-Id, Id], [Id, Id]])
 
                     return np.vstack((mat1, mat2))
@@ -169,17 +149,17 @@ class LimeTr:
                 def H_new(x):
                     v = x[:self.k]
 
-                    return H(v)
+                    return H.fun(v)
 
                 def JH_new(x):
                     v = x[:self.k]
 
-                    return np.hstack((JH(v),
+                    return np.hstack((H.jac_fun(v),
                                       np.zeros((self.num_regularizer,
                                                 self.k))))
 
-                self.H = H_new
-                self.JH = JH_new
+                self.H = SmoothMapping((self.num_regularizer, self.k_total),
+                                       H_new, JH_new)
 
             # extend Uniform priors
             if self.use_uprior:
@@ -258,12 +238,12 @@ class LimeTr:
         if self.use_trimming:
             sqrt_w = np.sqrt(self.w)
             sqrt_W = sqrt_w.reshape(self.N, 1)
-            F_beta = self.F(beta)*sqrt_w
+            F_beta = self.F.fun(beta)*sqrt_w
             Y = self.Y*sqrt_w
             Z = self.Z*sqrt_W
             V = self.V**self.w
         else:
-            F_beta = self.F(beta)
+            F_beta = self.F.fun(beta)
             Y = self.Y
             Z = self.Z
             V = self.V
@@ -290,7 +270,7 @@ class LimeTr:
 
         # add gpriors
         if self.use_regularizer:
-            val += 0.5*self.hw.dot((self.H(x) - self.hm)**2)
+            val += 0.5*self.hw.dot((self.H.fun(x) - self.hm)**2)
 
         if self.use_gprior:
             val += 0.5*self.gw.dot((x[:self.k] - self.gm)**2)
@@ -322,14 +302,14 @@ class LimeTr:
         if self.use_trimming:
             sqrt_w = np.sqrt(self.w)
             sqrt_W = sqrt_w.reshape(self.N, 1)
-            F_beta = self.F(beta)*sqrt_w
-            JF_beta = self.JF(beta)*sqrt_W
+            F_beta = self.F.fun(beta)*sqrt_w
+            JF_beta = self.F.jac_fun(beta)*sqrt_W
             Y = self.Y*sqrt_w
             Z = self.Z*sqrt_W
             V = self.V**self.w
         else:
-            F_beta = self.F(beta)
-            JF_beta = self.JF(beta)
+            F_beta = self.F.fun(beta)
+            JF_beta = self.F.jac_fun(beta)
             Y = self.Y
             Z = self.Z
             V = self.V
@@ -356,7 +336,7 @@ class LimeTr:
 
         # add gradient from the regularizer
         if self.use_regularizer:
-            g += self.JH(x).T.dot((self.H(x) - self.hm)*self.hw)
+            g += self.H.jac_fun(x).T.dot((self.H.fun(x) - self.hm)*self.hw)
 
         # add gradient from the gprior
         if self.use_gprior:
@@ -370,7 +350,7 @@ class LimeTr:
 
     def objectiveTrimming(self, w):
         t = (self.Z**2).dot(self.gamma)
-        r = self.Y - self.F(self.beta)
+        r = self.Y - self.F.fun(self.beta)
         v = self.V
         d = v + t
 
@@ -392,7 +372,7 @@ class LimeTr:
             return g
 
         t = (self.Z**2).dot(self.gamma)
-        r = (self.Y - self.F(self.beta))**2
+        r = (self.Y - self.F.fun(self.beta))**2
         v = self.V
         d = v + t
 
@@ -509,10 +489,10 @@ class LimeTr:
         S = self.S
 
         if self.use_trimming:
-            R = (self.Y - self.F(self.beta))*np.sqrt(self.w)
+            R = (self.Y - self.F.fun(self.beta))*np.sqrt(self.w)
             Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
         else:
-            R = self.Y - self.F(self.beta)
+            R = self.Y - self.F.fun(self.beta)
             Z = self.Z
 
         iV = 1.0/S**2
@@ -551,7 +531,7 @@ class LimeTr:
 
         E = np.random.randn(self.N)*S
 
-        self.Y = self.F(beta_t) + ZU + E
+        self.Y = self.F.fun(beta_t) + ZU + E
 
         if sim_prior:
             if self.use_gprior:
@@ -598,38 +578,22 @@ class LimeTr:
 
         Y = X.dot(beta_t) + U + E
 
-        def F(beta, X=X):
-            return X.dot(beta)
-
-        def JF(beta, X=X):
-            return X
+        F = LinearMapping(X)
 
         # constraints, regularizer and priors
         if use_constraints:
             M = np.ones((1, k))
-
-            def C(x, M=M):
-                return M.dot(x)
-
-            def JC(x, M=M):
-                return M
-
+            C = LinearMapping(M)
             c = np.array([[0.0], [1.0]])
         else:
-            C, JC, c = None, None, None
+            C, c = None, None
 
         if use_regularizer:
             M = np.ones((1, k))
-
-            def H(x, M=M):
-                return M.dot(x)
-
-            def JH(x, M=M):
-                return M
-
+            H = LinearMapping(M)
             h = np.array([[0.0], [2.0]])
         else:
-            H, JH, h = None, None, None
+            H, h = None, None
 
         if use_uprior:
             uprior = np.array([[0.0]*k, [np.inf]*k])
@@ -646,9 +610,9 @@ class LimeTr:
         else:
             inlier_percentage = 1.0
 
-        model = cls(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
-                   C=C, JC=JC, c=c,
-                   H=H, JH=JH, h=h,
+        model = cls(n, Y, F, Z, S,
+                   C=C, c=c,
+                   H=H, h=h,
                    uprior=uprior, gprior=gprior,
                    inlier_percentage=inlier_percentage)
         return model
@@ -673,16 +637,12 @@ class LimeTr:
 
         weight = 0.1*np.linalg.norm(X.T.dot(Y), np.inf)
 
-        def F(beta):
-            return X.dot(beta)
-
-        def JF(beta):
-            return X
+        F = LinearMapping(X)
 
         uprior = np.array([[-np.inf]*k_beta + [0.0], [np.inf]*k_beta + [0.0]])
         lprior = np.array([[0.0]*k, [np.sqrt(2.0)/weight]*k])
 
-        return cls(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
+        return cls(n, Y, F, Z, S,
                    uprior=uprior, lprior=lprior)
 
     @staticmethod

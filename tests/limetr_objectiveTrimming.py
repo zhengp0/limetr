@@ -17,7 +17,7 @@ def limetr_objectiveTrimming():
     x = np.hstack((model.beta, model.gamma))
     w = model.w
 
-    r = model.Y - model.F(model.beta)
+    r = model.Y - model.F.fun(model.beta)
     t = (model.Z**2).dot(model.gamma)
     d = model.V + t
 
