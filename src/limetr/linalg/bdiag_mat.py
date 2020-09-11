@@ -1,6 +1,6 @@
 """
-    blk_diag_mat
-    ~~~~~~~~~~~~
+    bdiag_mat
+    ~~~~~~~~~
 
     Block diagonal matrices module.
 """
