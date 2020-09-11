@@ -19,8 +19,8 @@ class LimeTr:
                  F: SmoothMapping,
                  Z: np.ndarray,
                  S: np.ndarray,
-                 C=None, JC=None, c=None,
-                 H=None, JH=None, h=None,
+                 C: SmoothMapping = None, c=None,
+                 H: SmoothMapping = None, h=None,
                  uprior=None, gprior=None, lprior=None,
                  certain_inlier_id=None,
                  inlier_percentage=1.0):
@@ -53,12 +53,11 @@ class LimeTr:
         self.use_lprior = (lprior is not None)
 
         self.C = C
-        self.JC = JC
         self.c = c
         if self.use_constraints:
-            self.constraints = C
-            self.jacobian = JC
-            self.num_constraints = C(np.zeros(self.k)).size
+            self.constraints = self.C.fun
+            self.jacobian = self.C.jac_fun
+            self.num_constraints = self.C.shape[0]
             self.cl = c[0]
             self.cu = c[1]
         else:
@@ -67,10 +66,9 @@ class LimeTr:
             self.cu = []
 
         self.H = H
-        self.JH = JH
         self.h = h
         if self.use_regularizer:
-            self.num_regularizer = H(np.zeros(self.k)).size
+            self.num_regularizer = self.H.shape[0]
             self.hm = self.h[0]
             self.hw = 1.0/self.h[1]**2
         else:
@@ -107,7 +105,7 @@ class LimeTr:
                     v = x[:self.k]
                     v_abs = x[self.k:]
 
-                    vec1 = C(v)
+                    vec1 = self.C.fun(v)
                     vec2 = np.hstack((v_abs - (v - self.lm),
                                       v_abs + (v - self.lm)))
 
@@ -118,7 +116,7 @@ class LimeTr:
                     v_abs = x[self.k:]
                     Id = np.eye(self.k)
 
-                    mat1 = JC(v)
+                    mat1 = self.C.jac_fun(v)
                     mat2 = np.block([[-Id, Id], [Id, Id]])
 
                     return np.vstack((mat1, mat2))
@@ -151,17 +149,17 @@ class LimeTr:
                 def H_new(x):
                     v = x[:self.k]
 
-                    return H(v)
+                    return H.fun(v)
 
                 def JH_new(x):
                     v = x[:self.k]
 
-                    return np.hstack((JH(v),
+                    return np.hstack((H.jac_fun(v),
                                       np.zeros((self.num_regularizer,
                                                 self.k))))
 
-                self.H = H_new
-                self.JH = JH_new
+                self.H = SmoothMapping((self.num_regularizer, self.k_total),
+                                       H_new, JH_new)
 
             # extend Uniform priors
             if self.use_uprior:
@@ -272,7 +270,7 @@ class LimeTr:
 
         # add gpriors
         if self.use_regularizer:
-            val += 0.5*self.hw.dot((self.H(x) - self.hm)**2)
+            val += 0.5*self.hw.dot((self.H.fun(x) - self.hm)**2)
 
         if self.use_gprior:
             val += 0.5*self.gw.dot((x[:self.k] - self.gm)**2)
@@ -338,7 +336,7 @@ class LimeTr:
 
         # add gradient from the regularizer
         if self.use_regularizer:
-            g += self.JH(x).T.dot((self.H(x) - self.hm)*self.hw)
+            g += self.H.jac_fun(x).T.dot((self.H.fun(x) - self.hm)*self.hw)
 
         # add gradient from the gprior
         if self.use_gprior:
@@ -585,29 +583,17 @@ class LimeTr:
         # constraints, regularizer and priors
         if use_constraints:
             M = np.ones((1, k))
-
-            def C(x, M=M):
-                return M.dot(x)
-
-            def JC(x, M=M):
-                return M
-
+            C = LinearMapping(M)
             c = np.array([[0.0], [1.0]])
         else:
-            C, JC, c = None, None, None
+            C, c = None, None
 
         if use_regularizer:
             M = np.ones((1, k))
-
-            def H(x, M=M):
-                return M.dot(x)
-
-            def JH(x, M=M):
-                return M
-
+            H = LinearMapping(M)
             h = np.array([[0.0], [2.0]])
         else:
-            H, JH, h = None, None, None
+            H, h = None, None
 
         if use_uprior:
             uprior = np.array([[0.0]*k, [np.inf]*k])
@@ -625,8 +611,8 @@ class LimeTr:
             inlier_percentage = 1.0
 
         model = cls(n, Y, F, Z, S,
-                   C=C, JC=JC, c=c,
-                   H=H, JH=JH, h=h,
+                   C=C, c=c,
+                   H=H, h=h,
                    uprior=uprior, gprior=gprior,
                    inlier_percentage=inlier_percentage)
         return model
