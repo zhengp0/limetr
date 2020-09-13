@@ -7,7 +7,7 @@
 from typing import List
 from dataclasses import dataclass, field
 import numpy as np
-from limetr.utils import check_size, has_no_repeat, split_by_sizes
+from limetr.utils import check_size, has_no_repeat
 
 
 @dataclass
@@ -35,9 +35,5 @@ class Data:
 
         assert all(self.obs_se > 0.0), "Numbers in obs_se must be positive."
         assert all(self.group_sizes > 0.0), "Numbers in group_sizes must be positive."
-        assert np.issubdtype(self.group_sizes, int), "Numbers in group_sizes must be integer."
+        assert np.issubdtype(self.group_sizes.dtype, int), "Numbers in group_sizes must be integer."
         assert has_no_repeat(self.index), "Numbers in index must be unique."
-
-    def split(self, array: np.ndarray, axis: int = 0) -> List[np.ndarray]:
-        return split_by_sizes(array, self.group_sizes, axis=axis)
-
