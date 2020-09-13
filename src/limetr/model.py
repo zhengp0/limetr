@@ -11,23 +11,23 @@ from copy import deepcopy
 from limetr.linalg import SquareBlockDiagMat, SmoothMapping, LinearMapping
 from limetr.optim import project_to_capped_simplex
 
+from .data import Data
+
 
 class LimeTr:
     def __init__(self,
-                 n: np.ndarray,
-                 Y: np.ndarray,
+                 data: Data,
                  F: SmoothMapping,
                  Z: np.ndarray,
-                 S: np.ndarray,
                  C: SmoothMapping = None, c=None,
                  H: SmoothMapping = None, h=None,
                  uprior=None, gprior=None, lprior=None,
                  certain_inlier_id=None,
                  inlier_percentage=1.0):
         # pass in the dimension
-        self.n = np.array(n)
-        self.m = len(n)
-        self.N = sum(n)
+        self.n = data.group_sizes
+        self.m = data.num_groups
+        self.N = data.num_obs
         self.k_beta = F.shape[1]
         self.k_gamma = Z.shape[1]
 
@@ -36,14 +36,14 @@ class LimeTr:
 
         self.idx_beta = slice(0, self.k_beta)
         self.idx_gamma = slice(self.k_beta, self.k_beta + self.k_gamma)
-        self.idx_split = np.cumsum(np.insert(n, 0, 0))[:-1]
+        self.idx_split = np.cumsum(np.insert(self.n, 0, 0))[:-1]
 
         # pass in the data
-        self.Y = Y
+        self.Y = data.obs
         self.F = F
         self.Z = Z
-        self.S = S
-        self.V = S**2
+        self.S = data.obs_se
+        self.V = data.obs_se**2
 
         # pass in the priors
         self.use_constraints = (C is not None)
@@ -610,7 +610,9 @@ class LimeTr:
         else:
             inlier_percentage = 1.0
 
-        model = cls(n, Y, F, Z, S,
+        data = Data(group_sizes=n, obs=Y, obs_se=S)
+
+        model = cls(data, F, Z,
                    C=C, c=c,
                    H=H, h=h,
                    uprior=uprior, gprior=gprior,
@@ -642,8 +644,9 @@ class LimeTr:
         uprior = np.array([[-np.inf]*k_beta + [0.0], [np.inf]*k_beta + [0.0]])
         lprior = np.array([[0.0]*k, [np.sqrt(2.0)/weight]*k])
 
-        return cls(n, Y, F, Z, S,
-                   uprior=uprior, lprior=lprior)
+        data = Data(group_sizes=n, obs=Y, obs_se=S)
+
+        return cls(data, F, Z, uprior=uprior, lprior=lprior)
 
     @staticmethod
     def sampleSoln(lt, sample_size=1, print_level=0, max_iter=100,
