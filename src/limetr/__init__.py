@@ -592,6 +592,28 @@ class LimeTr:
 
         return self.u
 
+    def estimate_re(self,
+                    beta: np.ndarray = None,
+                    gamma: np.ndarray = None,
+                    use_gamma: bool = True) -> np.ndarray:
+        beta = self.beta if beta is None else beta
+        gamma = self.gamma if gamma is None else gamma
+        r = np.split(self.Y - self.F(beta), np.cumsum(self.n)[:-1])
+        z = np.split(self.Z, np.cumsum(self.n)[:-1], axis=0)
+        v = np.split(self.S**2, np.cumsum(self.n)[:-1])
+
+        u = []
+        for i in range(self.m):
+            rhs = (z[i].T/v[i]).dot(r[i])
+            if use_gamma:
+                q = (z[i].T/v[i]).dot(z[i])*gamma + np.identity(self.k_gamma)
+                u.append(gamma[:, None]*np.linalg.inv(q).dot(rhs))
+            else:
+                q = (z[i].T/v[i]).dot(z[i])
+                u.append(np.linalg.inv(q).dot(rhs))
+
+        return np.vstack(u)
+
     def get_gamma_fisher(self, gamma: np.ndarray) -> np.ndarray:
         z = np.split(self.Z, np.cumsum(self.n)[:-1], axis=0)
         v = np.split(self.S**2, np.cumsum(self.n)[:-1])
