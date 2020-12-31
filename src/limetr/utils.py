@@ -18,9 +18,11 @@ def empty_array():
     return np.array([])
 
 
-def default_attr_factory(attr: Any, size: int, default_value: float,
+def default_attr_factory(attr: Any,
+                         size: int,
+                         default_value: float,
                          attr_name: str = 'attr') -> np.ndarray:
-    if attr is None:
+    if not attr:
         attr = np.repeat(default_value, size)
     elif np.isscalar(attr):
         attr = np.repeat(attr, size)
@@ -35,9 +37,15 @@ def check_size(attr: Any, size: int, attr_name: str = 'attr'):
     assert len(attr) == size, f"{attr_name} must length {size}."
 
 
-def isiterable(__obj: object) -> bool:
+def iterable(__obj: object) -> bool:
     return isinstance(__obj, Iterable)
 
 
 def has_no_repeat(array: np.ndarray) -> bool:
     return array.size == np.unique(array).size
+
+
+def sizes_to_slices(sizes: np.array) -> List[slice]:
+    ends = np.cumsum(sizes)
+    starts = np.insert(ends, 0, 0)[:-1]
+    return [slice(*pair) for pair in zip(starts, ends)]
