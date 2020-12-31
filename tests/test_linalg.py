@@ -3,9 +3,14 @@ import numpy as np
 import pytest
 import limetr.linalg as linalg
 
+
+#pylint: disable=redefined-outer-name
+
+
 nblocks = 5
 nrows = np.random.randint(1, 5, nblocks)
 ncols = np.random.randint(1, 5, nblocks)
+
 
 @pytest.fixture
 def bdmat():
@@ -19,6 +24,7 @@ def sbdmat():
     mat_blocks = [mat.T.dot(mat) for mat in mat_blocks]
     return linalg.SquareBlockDiagMat(mat_blocks)
 
+
 @pytest.fixture
 def smooth_mapping():
     m = 5
@@ -29,10 +35,10 @@ def smooth_mapping():
     def fun(x):
         return np.exp(mat1.dot(x)) - np.exp(mat2.dot(x))
 
-    def jac_fun(x):
+    def jac(x):
         return (mat1.T*np.exp(mat1.dot(x)) - mat2.T*np.exp(mat2.dot(x))).T
 
-    return linalg.SmoothMapping((m, n), fun, jac_fun)
+    return linalg.SmoothMapping((m, n), fun, jac)
 
 
 @pytest.fixture
@@ -94,12 +100,12 @@ def test_sbd_logdet(sbdmat):
 
 def test_smooth_mapping(smooth_mapping):
     x = np.zeros(smooth_mapping.shape[1])
-    assert smooth_mapping.fun(x).size == smooth_mapping.shape[0]
-    assert smooth_mapping.jac_fun(x).shape == smooth_mapping.shape
+    assert smooth_mapping(x).size == smooth_mapping.shape[0]
+    assert smooth_mapping.jac(x).shape == smooth_mapping.shape
 
 
 def test_linear_mapping(linear_mapping):
     x = np.zeros(linear_mapping.shape[1])
     assert linear_mapping.mat.shape == linear_mapping.shape
-    assert linear_mapping.fun(x).size == linear_mapping.shape[0]
-    assert linear_mapping.jac_fun(x).shape == linear_mapping.shape
+    assert linear_mapping(x).size == linear_mapping.shape[0]
+    assert linear_mapping.jac(x).shape == linear_mapping.shape

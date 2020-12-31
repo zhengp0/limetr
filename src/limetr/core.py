@@ -6,7 +6,7 @@
 """
 # nonlinear mixed effects model
 import numpy as np
-import ipopt
+# import ipopt
 from copy import deepcopy
 from limetr.linalg import SquareBlockDiagMat, SmoothMapping, LinearMapping
 from limetr.optim import project_to_capped_simplex
@@ -80,7 +80,7 @@ class LimeTr:
             self.uprior = np.array([
                 [-np.inf]*self.k_beta + [0.0]*self.k_gamma,
                 [np.inf]*self.k
-                ])
+            ])
             self.use_uprior = True
 
         self.lb = self.uprior[0]
@@ -381,301 +381,300 @@ class LimeTr:
 
         return g
 
-    def optimize(self, x0=None, print_level=0, max_iter=100, tol=1e-8,
-                 acceptable_tol=1e-6,
-                 nlp_scaling_method=None,
-                 nlp_scaling_min_value=None):
-        if x0 is None:
-            x0 = np.hstack((self.beta, self.gamma))
-            if self.use_lprior:
-                x0 = np.hstack((x0, np.zeros(self.k)))
+    # def optimize(self, x0=None, print_level=0, max_iter=100, tol=1e-8,
+    #              acceptable_tol=1e-6,
+    #              nlp_scaling_method=None,
+    #              nlp_scaling_min_value=None):
+    #     if x0 is None:
+    #         x0 = np.hstack((self.beta, self.gamma))
+    #         if self.use_lprior:
+    #             x0 = np.hstack((x0, np.zeros(self.k)))
 
-        assert x0.size == self.k_total
+    #     assert x0.size == self.k_total
 
-        opt_problem = ipopt.problem(
-            n=int(self.k_total),
-            m=int(self.num_constraints),
-            problem_obj=self,
-            lb=self.uprior[0],
-            ub=self.uprior[1],
-            cl=self.cl,
-            cu=self.cu
-            )
+    #     opt_problem = ipopt.problem(
+    #         n=int(self.k_total),
+    #         m=int(self.num_constraints),
+    #         problem_obj=self,
+    #         lb=self.uprior[0],
+    #         ub=self.uprior[1],
+    #         cl=self.cl,
+    #         cu=self.cu
+    #     )
 
-        opt_problem.addOption('print_level', print_level)
-        opt_problem.addOption('max_iter', max_iter)
-        opt_problem.addOption('tol', tol)
-        opt_problem.addOption('acceptable_tol', acceptable_tol)
-        if nlp_scaling_method is not None:
-            opt_problem.addOption('nlp_scaling_method', nlp_scaling_method)
-        if nlp_scaling_min_value is not None:
-            opt_problem.addOption('nlp_scaling_min_value', nlp_scaling_min_value)
+    #     opt_problem.addOption('print_level', print_level)
+    #     opt_problem.addOption('max_iter', max_iter)
+    #     opt_problem.addOption('tol', tol)
+    #     opt_problem.addOption('acceptable_tol', acceptable_tol)
+    #     if nlp_scaling_method is not None:
+    #         opt_problem.addOption('nlp_scaling_method', nlp_scaling_method)
+    #     if nlp_scaling_min_value is not None:
+    #         opt_problem.addOption('nlp_scaling_min_value', nlp_scaling_min_value)
 
-        soln, info = opt_problem.solve(x0)
+    #     soln, info = opt_problem.solve(x0)
 
-        self.soln = soln
-        self.info = info
-        self.beta = soln[self.idx_beta]
-        self.gamma = soln[self.idx_gamma]
+    #     self.soln = soln
+    #     self.info = info
+    #     self.beta = soln[self.idx_beta]
+    #     self.gamma = soln[self.idx_gamma]
 
-    def fitModel(self, x0=None,
-                 inner_print_level=0,
-                 inner_max_iter=20,
-                 inner_tol=1e-8,
-                 inner_acceptable_tol=1e-6,
-                 inner_nlp_scaling_method=None,
-                 inner_nlp_scaling_min_value=None,
-                 outer_verbose=False,
-                 outer_max_iter=100,
-                 outer_step_size=1.0,
-                 outer_tol=1e-6,
-                 normalize_trimming_grad=False):
+    # def fitModel(self, x0=None,
+    #              inner_print_level=0,
+    #              inner_max_iter=20,
+    #              inner_tol=1e-8,
+    #              inner_acceptable_tol=1e-6,
+    #              inner_nlp_scaling_method=None,
+    #              inner_nlp_scaling_min_value=None,
+    #              outer_verbose=False,
+    #              outer_max_iter=100,
+    #              outer_step_size=1.0,
+    #              outer_tol=1e-6,
+    #              normalize_trimming_grad=False):
 
-        if not self.use_trimming:
-            self.optimize(x0=x0,
-                          print_level=inner_print_level,
-                          max_iter=inner_max_iter,
-                          acceptable_tol=inner_acceptable_tol,
-                          nlp_scaling_method=inner_nlp_scaling_method,
-                          nlp_scaling_min_value=inner_nlp_scaling_min_value)
+    #     if not self.use_trimming:
+    #         self.optimize(x0=x0,
+    #                       print_level=inner_print_level,
+    #                       max_iter=inner_max_iter,
+    #                       acceptable_tol=inner_acceptable_tol,
+    #                       nlp_scaling_method=inner_nlp_scaling_method,
+    #                       nlp_scaling_min_value=inner_nlp_scaling_min_value)
 
-            return self.beta, self.gamma, self.w
+    #         return self.beta, self.gamma, self.w
 
-        self.soln = x0
+    #     self.soln = x0
 
-        num_iter = 0
-        err = outer_tol + 1.0
+    #     num_iter = 0
+    #     err = outer_tol + 1.0
 
-        while err >= outer_tol:
-            self.optimize(x0=self.soln,
-                          print_level=inner_print_level,
-                          max_iter=inner_max_iter,
-                          tol=inner_tol,
-                          acceptable_tol=inner_acceptable_tol,
-                          nlp_scaling_method=inner_nlp_scaling_method,
-                          nlp_scaling_min_value=inner_nlp_scaling_min_value)
+    #     while err >= outer_tol:
+    #         self.optimize(x0=self.soln,
+    #                       print_level=inner_print_level,
+    #                       max_iter=inner_max_iter,
+    #                       tol=inner_tol,
+    #                       acceptable_tol=inner_acceptable_tol,
+    #                       nlp_scaling_method=inner_nlp_scaling_method,
+    #                       nlp_scaling_min_value=inner_nlp_scaling_min_value)
 
-            w_grad = self.gradientTrimming(self.w)
-            if normalize_trimming_grad:
-                w_grad /= np.linalg.norm(w_grad)
-            w_new = project_to_capped_simplex(
-                        self.w - outer_step_size*w_grad,
-                        self.num_inliers,
-                        active_index=self.active_trimming_id)
+    #         w_grad = self.gradientTrimming(self.w)
+    #         if normalize_trimming_grad:
+    #             w_grad /= np.linalg.norm(w_grad)
+    #         w_new = project_to_capped_simplex(
+    #             self.w - outer_step_size*w_grad,
+    #             self.num_inliers,
+    #             active_index=self.active_trimming_id)
 
-            err = np.linalg.norm(w_new - self.w)/outer_step_size
-            np.copyto(self.w, w_new)
+    #         err = np.linalg.norm(w_new - self.w)/outer_step_size
+    #         np.copyto(self.w, w_new)
 
-            num_iter += 1
+    #         num_iter += 1
 
-            if outer_verbose:
-                obj = self.objectiveTrimming(self.w)
-                print('iter %4d, obj %8.2e, err %8.2e' % (num_iter, obj, err))
+    #         if outer_verbose:
+    #             obj = self.objectiveTrimming(self.w)
+    #             print('iter %4d, obj %8.2e, err %8.2e' % (num_iter, obj, err))
 
-            if num_iter >= outer_max_iter:
-                print('reach max outer iter')
-                break
+    #         if num_iter >= outer_max_iter:
+    #             print('reach max outer iter')
+    #             break
 
-        return self.beta, self.gamma, self.w
+    #     return self.beta, self.gamma, self.w
 
-    def estimateRE(self):
-        """
-        estimate random effect after fitModel
-        """
-        if self.soln is None:
-            print('Please fit the model first.')
-            return None
+    # def estimateRE(self):
+    #     """
+    #     estimate random effect after fitModel
+    #     """
+    #     if self.soln is None:
+    #         print('Please fit the model first.')
+    #         return None
 
-        S = self.S
+    #     S = self.S
 
-        if self.use_trimming:
-            R = (self.Y - self.F.fun(self.beta))*np.sqrt(self.w)
-            Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
-        else:
-            R = self.Y - self.F.fun(self.beta)
-            Z = self.Z
+    #     if self.use_trimming:
+    #         R = (self.Y - self.F.fun(self.beta))*np.sqrt(self.w)
+    #         Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
+    #     else:
+    #         R = self.Y - self.F.fun(self.beta)
+    #         Z = self.Z
 
-        iV = 1.0/S**2
-        iVZ = Z*iV.reshape(iV.size, 1)
+    #     iV = 1.0/S**2
+    #     iVZ = Z*iV.reshape(iV.size, 1)
 
-        r = np.split(R, np.cumsum(self.n)[:-1])
-        v = np.split(S**2, np.cumsum(self.n)[:-1])
-        z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
-        ivz = np.split(iVZ, np.cumsum(self.n)[:-1], axis=0)
+    #     r = np.split(R, np.cumsum(self.n)[:-1])
+    #     v = np.split(S**2, np.cumsum(self.n)[:-1])
+    #     z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
+    #     ivz = np.split(iVZ, np.cumsum(self.n)[:-1], axis=0)
 
-        u = []
-        for i in range(self.m):
-            rhs = ivz[i].T.dot(r[i])
-            tmp = z[i]*self.gamma
-            mat = np.diag(v[i]) + tmp.dot(z[i].T)
-            vec = self.gamma*rhs - tmp.T.dot(np.linalg.solve(mat, tmp.dot(rhs)))
-            u.append(vec)
+    #     u = []
+    #     for i in range(self.m):
+    #         rhs = ivz[i].T.dot(r[i])
+    #         tmp = z[i]*self.gamma
+    #         mat = np.diag(v[i]) + tmp.dot(z[i].T)
+    #         vec = self.gamma*rhs - tmp.T.dot(np.linalg.solve(mat, tmp.dot(rhs)))
+    #         u.append(vec)
 
-        self.u = np.vstack(u)
+    #     self.u = np.vstack(u)
 
-        return self.u
+    #     return self.u
 
-    def simulateData(self, beta_t, gamma_t, sim_prior=True, sim_re=True):
-        # sample random effects and measurement error
-        if sim_re:
-            u = np.random.randn(self.m, self.k_gamma)*np.sqrt(gamma_t)
-        else:
-            if not hasattr(self, 'u'):
-                self.estimateRE()
-            u = self.u
+    # def simulateData(self, beta_t, gamma_t, sim_prior=True, sim_re=True):
+    #     # sample random effects and measurement error
+    #     if sim_re:
+    #         u = np.random.randn(self.m, self.k_gamma)*np.sqrt(gamma_t)
+    #     else:
+    #         if not hasattr(self, 'u'):
+    #             self.estimateRE()
+    #         u = self.u
 
-        U = np.repeat(u, self.n, axis=0)
-        ZU = np.sum(self.Z*U, axis=1)
+    #     U = np.repeat(u, self.n, axis=0)
+    #     ZU = np.sum(self.Z*U, axis=1)
 
-        S = self.S
+    #     S = self.S
 
-        E = np.random.randn(self.N)*S
+    #     E = np.random.randn(self.N)*S
 
-        self.Y = self.F.fun(beta_t) + ZU + E
+    #     self.Y = self.F.fun(beta_t) + ZU + E
 
-        if sim_prior:
-            if self.use_gprior:
-                valid_id = ~np.isinf(self.gprior[1])
-                valid_num = np.sum(valid_id)
-                self.gm = np.zeros(self.k)
-                self.gm[valid_id] = self.gprior[0][valid_id] +\
-                    np.random.randn(valid_num)*self.gprior[1][valid_id]
+    #     if sim_prior:
+    #         if self.use_gprior:
+    #             valid_id = ~np.isinf(self.gprior[1])
+    #             valid_num = np.sum(valid_id)
+    #             self.gm = np.zeros(self.k)
+    #             self.gm[valid_id] = self.gprior[0][valid_id] +\
+    #                 np.random.randn(valid_num)*self.gprior[1][valid_id]
 
-            if self.use_regularizer:
-                valid_id = ~np.isinf(self.h[1])
-                valid_num = np.sum(valid_id)
-                self.hm = np.zeros(self.num_regularizer)
-                self.hm[valid_id] = self.h[0][valid_id] +\
-                    np.random.randn(valid_num)*self.h[1][valid_id]
+    #         if self.use_regularizer:
+    #             valid_id = ~np.isinf(self.h[1])
+    #             valid_num = np.sum(valid_id)
+    #             self.hm = np.zeros(self.num_regularizer)
+    #             self.hm[valid_id] = self.h[0][valid_id] +\
+    #                 np.random.randn(valid_num)*self.h[1][valid_id]
 
+    # @classmethod
+    # def testProblem(cls,
+    #                 use_trimming=False,
+    #                 use_constraints=False,
+    #                 use_regularizer=False,
+    #                 use_uprior=False,
+    #                 use_gprior=False):
+    #     m = 10
+    #     n = [5]*m
+    #     N = sum(n)
+    #     k_beta = 3
+    #     k_gamma = 2
+    #     k = k_beta + k_gamma
 
-    @classmethod
-    def testProblem(cls,
-                    use_trimming=False,
-                    use_constraints=False,
-                    use_regularizer=False,
-                    use_uprior=False,
-                    use_gprior=False):
-        m = 10
-        n = [5]*m
-        N = sum(n)
-        k_beta = 3
-        k_gamma = 2
-        k = k_beta + k_gamma
+    #     beta_t = np.random.randn(k_beta)
+    #     gamma_t = np.random.rand(k_gamma)*0.09 + 0.01
 
-        beta_t = np.random.randn(k_beta)
-        gamma_t = np.random.rand(k_gamma)*0.09 + 0.01
+    #     X = np.random.randn(N, k_beta)
+    #     Z = np.random.randn(N, k_gamma)
 
-        X = np.random.randn(N, k_beta)
-        Z = np.random.randn(N, k_gamma)
+    #     S = np.random.rand(N)*0.09 + 0.01
+    #     V = S**2
+    #     D = np.diag(V) + (Z*gamma_t).dot(Z.T)
 
-        S = np.random.rand(N)*0.09 + 0.01
-        V = S**2
-        D = np.diag(V) + (Z*gamma_t).dot(Z.T)
+    #     U = np.random.multivariate_normal(np.zeros(N), D)
+    #     E = np.random.randn(N)*S
 
-        U = np.random.multivariate_normal(np.zeros(N), D)
-        E = np.random.randn(N)*S
+    #     Y = X.dot(beta_t) + U + E
 
-        Y = X.dot(beta_t) + U + E
+    #     F = LinearMapping(X)
 
-        F = LinearMapping(X)
+    #     # constraints, regularizer and priors
+    #     if use_constraints:
+    #         M = np.ones((1, k))
+    #         C = LinearMapping(M)
+    #         c = np.array([[0.0], [1.0]])
+    #     else:
+    #         C, c = None, None
 
-        # constraints, regularizer and priors
-        if use_constraints:
-            M = np.ones((1, k))
-            C = LinearMapping(M)
-            c = np.array([[0.0], [1.0]])
-        else:
-            C, c = None, None
+    #     if use_regularizer:
+    #         M = np.ones((1, k))
+    #         H = LinearMapping(M)
+    #         h = np.array([[0.0], [2.0]])
+    #     else:
+    #         H, h = None, None
 
-        if use_regularizer:
-            M = np.ones((1, k))
-            H = LinearMapping(M)
-            h = np.array([[0.0], [2.0]])
-        else:
-            H, h = None, None
+    #     if use_uprior:
+    #         uprior = np.array([[0.0]*k, [np.inf]*k])
+    #     else:
+    #         uprior = None
 
-        if use_uprior:
-            uprior = np.array([[0.0]*k, [np.inf]*k])
-        else:
-            uprior = None
+    #     if use_gprior:
+    #         gprior = np.array([[0.0]*k, [2.0]*k])
+    #     else:
+    #         gprior = None
 
-        if use_gprior:
-            gprior = np.array([[0.0]*k, [2.0]*k])
-        else:
-            gprior = None
+    #     if use_trimming:
+    #         inlier_percentage = 0.9
+    #     else:
+    #         inlier_percentage = 1.0
 
-        if use_trimming:
-            inlier_percentage = 0.9
-        else:
-            inlier_percentage = 1.0
+    #     data = Data(group_sizes=n, obs=Y, obs_se=S)
 
-        data = Data(group_sizes=n, obs=Y, obs_se=S)
+    #     model = cls(data, F, Z,
+    #                 C=C, c=c,
+    #                 H=H, h=h,
+    #                 uprior=uprior, gprior=gprior,
+    #                 inlier_percentage=inlier_percentage)
+    #     return model
 
-        model = cls(data, F, Z,
-                   C=C, c=c,
-                   H=H, h=h,
-                   uprior=uprior, gprior=gprior,
-                   inlier_percentage=inlier_percentage)
-        return model
+    # @classmethod
+    # def testProblemLasso(cls):
+    #     m = 100
+    #     n = [1]*m
+    #     N = sum(n)
+    #     k_beta = 150
+    #     k_gamma = 1
+    #     k = k_beta + k_gamma
 
-    @classmethod
-    def testProblemLasso(cls):
-        m = 100
-        n = [1]*m
-        N = sum(n)
-        k_beta = 150
-        k_gamma = 1
-        k = k_beta + k_gamma
+    #     beta_t = np.zeros(k_beta)
+    #     beta_t[np.random.choice(k_beta, 5)] = np.sign(np.random.randn(5))
+    #     gamma_t = np.zeros(k_gamma)
 
-        beta_t = np.zeros(k_beta)
-        beta_t[np.random.choice(k_beta, 5)] = np.sign(np.random.randn(5))
-        gamma_t = np.zeros(k_gamma)
+    #     X = np.random.randn(N, k_beta)
+    #     Z = np.ones((N, k_gamma))
+    #     Y = X.dot(beta_t)
+    #     S = np.repeat(1.0, N)
 
-        X = np.random.randn(N, k_beta)
-        Z = np.ones((N, k_gamma))
-        Y = X.dot(beta_t)
-        S = np.repeat(1.0, N)
+    #     weight = 0.1*np.linalg.norm(X.T.dot(Y), np.inf)
 
-        weight = 0.1*np.linalg.norm(X.T.dot(Y), np.inf)
+    #     F = LinearMapping(X)
 
-        F = LinearMapping(X)
+    #     uprior = np.array([[-np.inf]*k_beta + [0.0], [np.inf]*k_beta + [0.0]])
+    #     lprior = np.array([[0.0]*k, [np.sqrt(2.0)/weight]*k])
 
-        uprior = np.array([[-np.inf]*k_beta + [0.0], [np.inf]*k_beta + [0.0]])
-        lprior = np.array([[0.0]*k, [np.sqrt(2.0)/weight]*k])
+    #     data = Data(group_sizes=n, obs=Y, obs_se=S)
 
-        data = Data(group_sizes=n, obs=Y, obs_se=S)
+    #     return cls(data, F, Z, uprior=uprior, lprior=lprior)
 
-        return cls(data, F, Z, uprior=uprior, lprior=lprior)
+    # @staticmethod
+    # def sampleSoln(lt, sample_size=1, print_level=0, max_iter=100,
+    #                sim_prior=True, sim_re=True):
+    #     beta_samples = np.zeros((sample_size, lt.k_beta))
+    #     gamma_samples = np.zeros((sample_size, lt.k_gamma))
 
-    @staticmethod
-    def sampleSoln(lt, sample_size=1, print_level=0, max_iter=100,
-                   sim_prior=True, sim_re=True):
-        beta_samples = np.zeros((sample_size, lt.k_beta))
-        gamma_samples = np.zeros((sample_size, lt.k_gamma))
+    #     beta_t = lt.beta.copy()
+    #     gamma_t = lt.gamma.copy()
 
-        beta_t = lt.beta.copy()
-        gamma_t = lt.gamma.copy()
+    #     lt_copy = deepcopy(lt)
+    #     lt_copy.uprior[:, lt.k_beta:] = np.vstack((gamma_t, gamma_t))
 
-        lt_copy = deepcopy(lt)
-        lt_copy.uprior[:, lt.k_beta:] = np.vstack((gamma_t, gamma_t))
+    #     for i in range(sample_size):
+    #         lt_copy.simulateData(beta_t, gamma_t,
+    #                              sim_prior=sim_prior, sim_re=sim_re)
+    #         lt_copy.optimize(x0=np.hstack((beta_t, gamma_t)),
+    #                          print_level=print_level,
+    #                          max_iter=max_iter)
 
-        for i in range(sample_size):
-            lt_copy.simulateData(beta_t, gamma_t,
-                                 sim_prior=sim_prior, sim_re=sim_re)
-            lt_copy.optimize(x0=np.hstack((beta_t, gamma_t)),
-                             print_level=print_level,
-                             max_iter=max_iter)
+    #         u_samples = lt_copy.estimateRE()
 
-            u_samples = lt_copy.estimateRE()
+    #         beta_samples[i] = lt_copy.beta.copy()
+    #         gamma_samples[i] = np.maximum(
+    #             lt.uprior[0, lt.k_beta:],
+    #             np.minimum(lt.uprior[1, lt.k_beta:], np.var(u_samples, axis=0))
+    #         )
 
-            beta_samples[i] = lt_copy.beta.copy()
-            gamma_samples[i] = np.maximum(
-                lt.uprior[0, lt.k_beta:],
-                np.minimum(lt.uprior[1, lt.k_beta:], np.var(u_samples, axis=0))
-            )
+    #         print('sampling solution progress %0.2f' % ((i + 1)/sample_size),
+    #               end='\r')
 
-            print('sampling solution progress %0.2f' % ((i + 1)/sample_size),
-                  end='\r')
-
-        return beta_samples, gamma_samples
+    #     return beta_samples, gamma_samples
