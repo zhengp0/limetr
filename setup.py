@@ -1,33 +1,41 @@
+import sys
 from pathlib import Path
 from setuptools import setup, find_packages
 
 
 if __name__ == '__main__':
     base_dir = Path(__file__).parent
-    src_dir = base_dir/'src'
+    src_dir = base_dir/'src'/'limetr'
 
-    about = {}
-    with (src_dir/'limetr'/'__about__.py').open() as f:
-        exec(f.read(), about)
+    sys.path.insert(0, src_dir.as_posix())
+    import __about__ as about
 
-    with (base_dir/'README.md').open() as f:
+    with (base_dir/'README.rst').open() as f:
         long_description = f.read()
 
-    install_requirements = ['numpy', 'scipy', 'spmat']
-    test_requirements = ['pytest']
+    install_requirements = [
+        'numpy',
+        'scipy',
+        'spmat'
+    ]
+
+    test_requirements = [
+        'pytest',
+        'pytest-mock',
+    ]
+
     doc_requirements = []
-    unresolved_requirements = ['ipopt']
 
-    setup(name=about['__title__'],
-          version=about['__version__'],
+    setup(name=about.__title__,
+          version=about.__version__,
 
-          description=about['__summary__'],
+          description=about.__summary__,
           long_description=long_description,
-          license=about['__license__'],
-          url=about['__uri__'],
+          license=about.__license__,
+          url=about.__uri__,
 
-          author=about['__author__'],
-          author_email=about['__email__'],
+          author=about.__author__,
+          author_email=about.__email__,
 
           package_dir={'': 'src'},
           packages=find_packages(where='src'),
@@ -39,5 +47,5 @@ if __name__ == '__main__':
               'docs': doc_requirements,
               'test': test_requirements,
               'dev': doc_requirements + test_requirements
-    },
-        zip_safe=False)
+          },
+          zip_safe=False,)
