@@ -13,7 +13,7 @@ if __name__ == '__main__':
     with (base_dir/'README.md').open() as f:
         long_description = f.read()
 
-    install_requirements = ['numpy', 'scipy']
+    install_requirements = ['numpy', 'scipy', 'spmat']
     test_requirements = ['pytest']
     doc_requirements = []
     unresolved_requirements = ['ipopt']
@@ -39,5 +39,5 @@ if __name__ == '__main__':
               'docs': doc_requirements,
               'test': test_requirements,
               'dev': doc_requirements + test_requirements
-          },
-          zip_safe=False)
+    },
+        zip_safe=False)

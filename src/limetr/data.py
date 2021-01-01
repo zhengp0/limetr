@@ -40,3 +40,6 @@ class Data:
         assert np.issubdtype(self.group_sizes.dtype, int), "Numbers in group_sizes must be integer."
         assert has_no_repeat(self.index), "Numbers in index must be unique."
         assert all(self.weights >= 0) and all(self.weights <= 1), "Weights must be between 0 and 1."
+
+    def __repr__(self) -> str:
+        return f"Data(num_obs={self.num_obs}, num_groups={self.num_groups})"

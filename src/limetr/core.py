@@ -4,12 +4,15 @@
 
     Main model module.
 """
-from typing import Tuple, List
+from typing import Tuple
 import numpy as np
-from limetr.linalg import SquareBlockDiagMat
+from scipy.linalg import block_diag
+from scipy.optimize import minimize
+from scipy.optimize import LinearConstraint
+from spmat import BDLMat
 from limetr.variable import FEVariable, REVariable
 from limetr.data import Data
-from limetr.utils import sizes_to_slices
+from limetr.utils import split_by_sizes, get_varmat
 
 
 class LimeTr:
@@ -30,9 +33,7 @@ class LimeTr:
 
         self.check_attr()
 
-        self.sizes = [self.fevar.size, self.revar.size]
-        self.size = sum(self.sizes)
-        self.slices = sizes_to_slices(self.sizes)
+        self.result = None
 
     def check_attr(self):
         # check size
@@ -44,30 +45,118 @@ class LimeTr:
         if self.inlier_pct < 0 or self.inlier_pct > 1:
             raise ValueError("`inlier_pct` must be between 0 and 1.")
 
-    def split_var(self, var: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        return var[self.slices[0]], var[self.slices[1]]
+    def get_vars(self, var: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        variables = split_by_sizes(var, [self.fevar.size, self.revar.size])
+        beta = variables[0]
+        gamma = variables[1]
+        gamma[gamma < 0] = 0.0
+        return beta, gamma
 
-    def split_data(self, data: np.ndarray, axis: int = 0) -> List[np.ndarray]:
-        return np.split(data, np.cumsum(self.data.group_sizes)[:-1], axis=axis)
+    def get_residual(self, beta: np.ndarray, split: bool = False) -> np.ndarray:
+        residual = self.data.weights*(self.data.obs - self.fevar.mapping(beta))
+        if split:
+            residual = split_by_sizes(residual, self.data.group_sizes)
+        return residual
+
+    def get_femat(self, beta: np.ndarray, split: bool = False) -> np.ndarray:
+        femat = self.data.weights[:, None]*self.fevar.mapping.jac(beta)
+        if split:
+            femat = split_by_sizes(femat, self.data.group_sizes)
+        return femat
+
+    def get_remat(self, split: bool = True) -> np.ndarray:
+        remat = self.data.weights[:, None]*self.revar.mapping.mat
+        if split:
+            remat = split_by_sizes(remat, self.data.group_sizes)
+        return remat
+
+    def get_obsvar(self, split: bool = True) -> np.ndarray:
+        obsvar = self.data.obs_se**(2*self.data.weights)
+        if split:
+            obsvar = split_by_sizes(obsvar, self.data.group_sizes)
+        return obsvar
+
+    def get_varmat(self, gamma) -> BDLMat:
+        return get_varmat(gamma, self.get_obsvar(), self.get_remat())
+
+    def get_beta_fisher(self,
+                        beta: np.ndarray,
+                        gamma: np.ndarray = None,
+                        d: BDLMat = None) -> np.ndarray:
+        d = self.get_varmat(gamma) if d is None else d
+        femat = self.get_femat(beta, split=False)
+        return femat.T.dot(d.invdot(femat))
+
+    def get_gamma_fisher(self,
+                         gamma: np.ndarray = None,
+                         d: BDLMat = None) -> np.ndarray:
+        d = self.get_varmat(gamma) if d is None else d
+        remat = self.get_remat(split=True)
+        gamma_fisher = np.zeros((self.revar.size, self.revar.size))
+        for i in range(self.data.num_groups):
+            gamma_fisher += 0.5*(remat[i].T.dot(d.dlmats[i].invdot(remat[i])))**2
+        return gamma_fisher
 
     def objective(self, var: np.ndarray) -> float:
-        beta, gamma = self.split_var(var)
-        gamma[gamma <= 0.0] = 0.0
-
-        w = self.data.weights
-        r = w*(self.data.obs - self.fevar.mapping(beta))
-        z = self.split_data(w[:, None]*self.revar.mapping.mat)
-        v = self.split_data(self.data.obs_se**(2*w))
-
-        d = SquareBlockDiagMat([(z[i]*gamma).dot(z[i].T) + np.diag(v[i])
-                                for i in range(self.data.num_groups)])
+        beta, gamma = self.get_vars(var)
+        r = self.get_residual(beta)
+        d = self.get_varmat(gamma)
 
         val = 0.5*(d.logdet() + r.dot(d.invdot(r)))
-
-        # TODO: add objective from prior
+        val += self.fevar.get_prior_objective(beta)
+        val += self.revar.get_prior_objective(gamma)
 
         return val
 
     def gradient(self, var: np.ndarray) -> np.ndarray:
-        # TODO: add gradient
-        return np.zeros(self.size)
+        beta, gamma = self.get_vars(var)
+        r = self.get_residual(beta)
+        d = self.get_varmat(gamma)
+        femat = self.get_femat(beta, split=False)
+        remat = self.get_remat(split=False)
+
+        dr = d.invdot(r)
+        split_index = np.cumsum(np.insert(self.data.group_sizes, 0, 0))[:-1]
+
+        grad_beta = -femat.T.dot(dr) + self.fevar.get_prior_gradient(beta)
+        grad_gamma = 0.5*(
+            np.sum(remat*(d.invdot(remat)), axis=0) -
+            np.sum(np.add.reduceat(remat.T*dr, split_index, axis=1)**2, axis=1)
+        ) + self.revar.get_prior_gradient(gamma)
+
+        return np.hstack([grad_beta, grad_gamma])
+
+    def hessian(self, var: np.ndarray) -> np.ndarray:
+        beta, gamma = self.get_vars(var)
+        d = self.get_varmat(gamma)
+
+        hess_beta = self.get_beta_fisher(beta, d=d) + \
+            self.fevar.get_prior_hessian(beta)
+        hess_gamma = self.get_gamma_fisher(d=d) + \
+            self.revar.get_prior_hessian(gamma)
+
+        return block_diag(hess_beta, hess_gamma)
+
+    def fit_model(self,
+                  var: np.ndarray = None,
+                  options: dict = None):
+        var = np.zeros(self.fevar.size + self.revar.size) if var is None else var
+
+        bounds = np.hstack([self.fevar.get_uvec(), self.revar.get_uvec()]).T
+        constraints_mat = block_diag(self.fevar.get_linear_umat(),
+                                     self.revar.get_linear_umat())
+        constraints_vec = np.hstack([self.fevar.get_linear_uvec(),
+                                     self.revar.get_linear_uvec()])
+        constraints = [LinearConstraint(
+            constraints_mat,
+            constraints_vec[0],
+            constraints_vec[1]
+        )] if constraints_mat.size > 0 else []
+
+        self.result = minimize(self.objective, var,
+                               method="trust-constr",
+                               jac=self.gradient,
+                               hess=self.hessian,
+                               constraints=constraints,
+                               bounds=bounds,
+                               options=options)

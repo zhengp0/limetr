@@ -4,12 +4,16 @@
 
     Helper functions.
 """
-from typing import List, Any
+from typing import List, Any, Union
+from numbers import Number
 from collections.abc import Iterable
 import numpy as np
+from spmat.dlmat import DLMat, BDLMat
 
 
-def split_by_sizes(array: np.ndarray, sizes: List[int], axis: int = 0) -> List[np.ndarray]:
+def split_by_sizes(array: np.ndarray,
+                   sizes: List[int],
+                   axis: int = 0) -> List[np.ndarray]:
     assert array.shape[axis] == sum(sizes)
     return np.split(array, np.cumsum(sizes)[:-1], axis=axis)
 
@@ -18,23 +22,23 @@ def empty_array():
     return np.array([])
 
 
-def default_attr_factory(attr: Any,
-                         size: int,
-                         default_value: float,
-                         attr_name: str = 'attr') -> np.ndarray:
-    if not attr:
-        attr = np.repeat(default_value, size)
-    elif np.isscalar(attr):
-        attr = np.repeat(attr, size)
+def default_vec_factory(vec: Union[Number, Iterable],
+                        size: int,
+                        default_value: float,
+                        vec_name: str = 'attr') -> np.ndarray:
+    if np.isscalar(vec):
+        vec = np.repeat(vec, size)
+    elif len(vec) == 0:
+        vec = np.repeat(default_value, size)
     else:
-        attr = np.asarray(attr)
-        check_size(attr, size, attr_name=attr_name)
+        vec = np.asarray(vec)
+        check_size(vec, size, vec_name=vec_name)
 
-    return attr
+    return vec
 
 
-def check_size(attr: Any, size: int, attr_name: str = 'attr'):
-    assert len(attr) == size, f"{attr_name} must length {size}."
+def check_size(vec: Any, size: int, vec_name: str = 'attr'):
+    assert len(vec) == size, f"{vec_name} must length {size}."
 
 
 def iterable(__obj: object) -> bool:
@@ -49,3 +53,15 @@ def sizes_to_slices(sizes: np.array) -> List[slice]:
     ends = np.cumsum(sizes)
     starts = np.insert(ends, 0, 0)[:-1]
     return [slice(*pair) for pair in zip(starts, ends)]
+
+
+def get_varmat(gamma: np.ndarray,
+               obsvar: List[np.ndarray],
+               remat: List[np.ndarray]) -> BDLMat:
+    assert len(obsvar) == len(remat)
+    sqrt_gamma = np.sqrt(gamma)
+    dlmats = [
+        DLMat(obsvar[i], remat[i]*sqrt_gamma)
+        for i in range(len(obsvar))
+    ]
+    return BDLMat(dlmats)
