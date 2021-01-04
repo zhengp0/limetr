@@ -47,3 +47,13 @@ def test_sizes_to_slices():
     slices = [slice(0, 1), slice(1, 3), slice(3, 6)]
     result = utils.sizes_to_slices(sizes)
     assert all([result[i] == slices[i] for i in range(len(sizes))])
+
+
+@pytest.mark.parametrize(('vec', 'size', 'default_value'),
+                         [([], 5, 1),
+                          (1, 5, None),
+                          ([1]*5, 5, None)])
+@pytest.mark.parametrize('result', [np.ones(5)])
+def test_default_vec_factory(vec, size, default_value, result):
+    my_result = utils.default_vec_factory(vec, size, default_value)
+    assert np.allclose(my_result, result)

@@ -6,7 +6,7 @@
 """
 from collections.abc import Iterable
 from numbers import Number
-from typing import List, Union
+from typing import Any, List, Union
 
 import numpy as np
 from spmat.dlmat import BDLMat, DLMat
@@ -57,11 +57,41 @@ def empty_array() -> np.ndarray:
 
 def default_vec_factory(vec: Union[Number, Iterable],
                         size: int,
-                        default_value: float,
-                        vec_name: str = 'attr') -> np.ndarray:
+                        default_value: Any = None,
+                        vec_name: str = 'vector') -> np.ndarray:
+    """
+    Function that automatically create and fill values of a vector.
+
+    Parameters
+    ----------
+    vec : Union[Number, Iterable]
+        A vector or number that need to be checked or expand.
+    size : int
+        The desired size of the vector.
+    default_value : Any, optional
+        Default value of the vector, will be used when ``vec`` is empty.
+        Default is ``None``.
+    vec_name : str, optional
+        Name of the vector, for more informative error message.
+        Default to be ``'vector'``.
+
+    Raises
+    ------
+    AssertionError
+        If ``vec`` is empty and ``default_value`` is ``None``.
+    AssertionError
+        If ``vec`` is ``Iterable`` and length does not equal to ``size``.
+
+    Returns
+    -------
+    ndarray:
+        Final processed array.
+    """
     if np.isscalar(vec):
         vec = np.repeat(vec, size)
     elif len(vec) == 0:
+        assert default_value is not None, \
+            "Must provide `default_value` when `vec` is empty."
         vec = np.repeat(default_value, size)
     else:
         vec = np.asarray(vec)
@@ -134,7 +164,7 @@ def sizes_to_slices(sizes: Iterable) -> List[slice]:
 
     Parameters
     ----------
-    sizes : Iterable
+    sizes : Iterable[int]
         Iterable object contains positive integers as the sizes of the arrays.
 
     Returns
