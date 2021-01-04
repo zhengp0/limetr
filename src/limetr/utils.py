@@ -180,6 +180,32 @@ def sizes_to_slices(sizes: Iterable) -> List[slice]:
 def get_varmat(gamma: np.ndarray,
                obsvar: List[np.ndarray],
                remat: List[np.ndarray]) -> BDLMat:
+    """
+    Function that compute the variance-covariance matrix for the mixed effects
+    model, used in optimization interface.
+
+    Parameters
+    ----------
+    gamma : ndarray
+        Variance vector of the random effects.
+    obsvar : List[ndarray]
+        Variance vectors of the obervation errors. Each array in the list
+        corresponding to a group.
+    remat : List[ndarray]
+        Random effects design matrices. Each matrix in the list corresponding to
+        a group.
+
+    Raises
+    ------
+    AssertionError
+        If length of ``obsvar`` does not equal to length of ``remat``. Both
+        lengths should agree with number of groups.
+
+    Returns
+    -------
+    BDLMat
+        Block diagonal matrix object.
+    """
     assert len(obsvar) == len(remat)
     sqrt_gamma = np.sqrt(gamma)
     dlmats = [
