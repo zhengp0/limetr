@@ -33,3 +33,10 @@ def test_check_size():
                           ([3], True)])
 def test_iterable(obj, result):
     assert utils.iterable(obj) == result
+
+
+@pytest.mark.parametrize(('array', 'result'),
+                         [(np.array([1, 1, 2]), False),
+                          (np.array([1, 2, 3]), True)])
+def test_has_no_repeat(array, result):
+    assert utils.has_no_repeat(array) == result

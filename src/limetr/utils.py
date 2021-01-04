@@ -82,7 +82,7 @@ def check_size(vec: Iterable, size: int, vec_name: str = 'vector'):
         Desired size of the vector.
     vec_name : str, optional
         Name of the vector, for more informative error message.
-        Default to be ``vector``.
+        Default to be ``'vector'``.
 
     Raises
     ------
@@ -111,6 +111,19 @@ def iterable(__obj: object) -> bool:
 
 
 def has_no_repeat(array: np.ndarray) -> bool:
+    """
+    Function that check if an array have no repeat values.
+
+    Parameters
+    ----------
+    array : ndarray
+        Array that need to be examed.
+
+    Returns
+    -------
+    bool
+        ``True`` if array has no repeat values, and ``False`` otherwise.
+    """
     return array.size == np.unique(array).size
 
 
