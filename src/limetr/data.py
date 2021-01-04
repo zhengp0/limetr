@@ -29,11 +29,11 @@ class Data:
         self.num_groups = self.group_sizes.size
 
     def check_attr(self):
-        check_size(self.obs, self.num_obs, attr_name='obs')
-        check_size(self.obs_se, self.num_obs, attr_name='obs_se')
-        check_size(self.group_sizes, self.num_groups, attr_name='group_sizes')
-        check_size(self.index, self.num_obs, attr_name='index')
-        check_size(self.weights, self.num_obs, attr_name="weights")
+        check_size(self.obs, self.num_obs, vec_name='obs')
+        check_size(self.obs_se, self.num_obs, vec_name='obs_se')
+        check_size(self.group_sizes, self.num_groups, vec_name='group_sizes')
+        check_size(self.index, self.num_obs, vec_name='index')
+        check_size(self.weights, self.num_obs, vec_name="weights")
 
         assert all(self.obs_se > 0.0), "Numbers in obs_se must be positive."
         assert all(self.group_sizes > 0.0), "Numbers in group_sizes must be positive."
