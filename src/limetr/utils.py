@@ -44,6 +44,14 @@ def split_by_sizes(array: np.ndarray,
 
 
 def empty_array():
+    """
+    Function used for 'default_factory', creates and returns empty array.
+
+    Returns
+    -------
+    ndarray
+        An empty array with ``dtype`` being ``float``.
+    """
     return np.array([])
 
 
