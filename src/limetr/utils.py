@@ -127,7 +127,21 @@ def has_no_repeat(array: np.ndarray) -> bool:
     return array.size == np.unique(array).size
 
 
-def sizes_to_slices(sizes: np.array) -> List[slice]:
+def sizes_to_slices(sizes: Iterable) -> List[slice]:
+    """
+    Function that convert sizes of sub-arrays to corresponding slices in the
+    original array.
+
+    Parameters
+    ----------
+    sizes : Iterable
+        Iterable object contains positive integers as the sizes of the arrays.
+
+    Returns
+    -------
+    List[slice]
+        A list of ``slice`` to access each sub-array in the original array.
+    """
     ends = np.cumsum(sizes)
     starts = np.insert(ends, 0, 0)[:-1]
     return [slice(*pair) for pair in zip(starts, ends)]

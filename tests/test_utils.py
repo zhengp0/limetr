@@ -40,3 +40,10 @@ def test_iterable(obj, result):
                           (np.array([1, 2, 3]), True)])
 def test_has_no_repeat(array, result):
     assert utils.has_no_repeat(array) == result
+
+
+def test_sizes_to_slices():
+    sizes = [1, 2, 3]
+    slices = [slice(0, 1), slice(1, 3), slice(3, 6)]
+    result = utils.sizes_to_slices(sizes)
+    assert all([result[i] == slices[i] for i in range(len(sizes))])
