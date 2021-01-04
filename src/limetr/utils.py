@@ -70,7 +70,25 @@ def default_vec_factory(vec: Union[Number, Iterable],
     return vec
 
 
-def check_size(vec: Any, size: int, vec_name: str = 'attr'):
+def check_size(vec: Iterable, size: int, vec_name: str = 'vector'):
+    """
+    Function that check the size consistency.
+
+    Parameters
+    ----------
+    vec : Iterable
+        Iterable vector which length will be checked.
+    size : int
+        Desired size of the vector.
+    vec_name : str, optional
+        Name of the vector, for more informative error message.
+        Default to be ``vector``.
+
+    Raises
+    ------
+    AssertionError
+        If vector length does not equal to provided ``size``.
+    """
     assert len(vec) == size, f"{vec_name} must length {size}."
 
 

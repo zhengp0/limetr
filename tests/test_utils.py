@@ -15,3 +15,14 @@ def test_empty_array():
     array = utils.empty_array()
     assert array.size == 0
     assert np.issubdtype(array.dtype, float)
+
+
+@pytest.mark.parametrize('vec', [[0, 1, 2]])
+@pytest.mark.parametrize('size', [2])
+def test_check_size_assert(vec, size):
+    with pytest.raises(AssertionError):
+        utils.check_size(vec, size)
+
+
+def test_check_size():
+    utils.check_size([1, 2, 3], 3)
