@@ -6,7 +6,7 @@
 """
 from collections.abc import Iterable
 from numbers import Number
-from typing import Any, List, Union
+from typing import List, Union
 
 import numpy as np
 from spmat.dlmat import BDLMat, DLMat
@@ -43,7 +43,7 @@ def split_by_sizes(array: np.ndarray,
     return np.split(array, np.cumsum(sizes)[:-1], axis=axis)
 
 
-def empty_array():
+def empty_array() -> np.ndarray:
     """
     Function used for 'default_factory', creates and returns empty array.
 
@@ -93,6 +93,20 @@ def check_size(vec: Iterable, size: int, vec_name: str = 'vector'):
 
 
 def iterable(__obj: object) -> bool:
+    """
+    Function that check if an object is iterable.
+
+    Parameters
+    ----------
+
+    __obj : object
+        Object to be examed.
+
+    Returns
+    -------
+    bool
+        ``True`` if object is iterable, and ``False`` otherwise.
+    """
     return isinstance(__obj, Iterable)
 
 

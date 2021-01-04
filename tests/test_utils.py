@@ -26,3 +26,10 @@ def test_check_size_assert(vec, size):
 
 def test_check_size():
     utils.check_size([1, 2, 3], 3)
+
+
+@pytest.mark.parametrize(('obj', 'result'),
+                         [(3, False),
+                          ([3], True)])
+def test_iterable(obj, result):
+    assert utils.iterable(obj) == result
