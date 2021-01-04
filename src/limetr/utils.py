@@ -4,16 +4,41 @@
 
     Helper functions.
 """
-from typing import List, Any, Union
-from numbers import Number
 from collections.abc import Iterable
+from numbers import Number
+from typing import Any, List, Union
+
 import numpy as np
-from spmat.dlmat import DLMat, BDLMat
+from spmat.dlmat import BDLMat, DLMat
 
 
 def split_by_sizes(array: np.ndarray,
                    sizes: List[int],
                    axis: int = 0) -> List[np.ndarray]:
+    """
+    Function that split an array into a list of arrays, provided the size for
+    each sub-array size.
+
+    Parameters
+    ----------
+    array : ndarray
+        The array need to be splitted.
+    sizes : List[int]
+        A list of sizes for each sub-array.
+    axis: int, optional
+        Along which axis, array will be splitted, default is 0.
+
+    Raises
+    ------
+    AssertionError
+        If the sum of the ``sizes`` does not equal to the shape of ``array``
+        along ``axis``.
+
+    Returns
+    -------
+    List[ndarray]
+        A list of splitted array. 
+    """
     assert array.shape[axis] == sum(sizes)
     return np.split(array, np.cumsum(sizes)[:-1], axis=axis)
 
