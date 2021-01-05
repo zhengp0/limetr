@@ -10,7 +10,7 @@ from typing import Iterable, Union
 
 import numpy as np
 
-from limetr.utils import default_vec_factory
+from limetr.utils import default_vec_factory, iterable
 
 
 # pylint: disable=too-many-instance-attributes
@@ -98,10 +98,13 @@ class Data:
     group_sizes = property(operator.attrgetter("_group_sizes"))
 
     @group_sizes.setter
-    def group_sizes(self, vec: Union[Iterable, None]):
+    def group_sizes(self, vec: Union[None, Iterable]):
         if vec is None:
             vec = np.ones(self.num_obs, dtype=int)
-        vec = np.asarray(vec).astype(int)
+        elif iterable(vec):
+            vec = np.asarray(vec).astype(int)
+        else:
+            raise TypeError("Use `None` or a vector to set `group_sizes`.")
         if any(vec <= 0.0):
             raise ValueError("`group_sizes` must be all positive.")
         if sum(vec) != self.num_obs:

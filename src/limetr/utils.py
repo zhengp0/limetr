@@ -116,10 +116,11 @@ def check_size(vec: Iterable, size: int, vec_name: str = 'vector'):
 
     Raises
     ------
-    AssertionError
+    ValueError
         If vector length does not equal to provided ``size``.
     """
-    assert len(vec) == size, f"{vec_name} must length {size}."
+    if len(vec) != size:
+        raise ValueError(f"{vec_name} must be length {size}.")
 
 
 def iterable(__obj: object) -> bool:
