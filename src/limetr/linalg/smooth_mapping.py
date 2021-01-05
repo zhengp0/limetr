@@ -4,58 +4,101 @@
 
     Smooth mapping module.
 """
-from typing import Tuple, Callable
+from typing import Callable, Tuple
+
 import numpy as np
 
 
 class SmoothMapping:
     """
-    Smooth mapping class, callable and including Jacobian function.
+    Smooth mapping class, including function and Jacobian function.
+
+    Attributes
+    ----------
+    shape: Tuple[int, int]
+        Shape of the mapping.
+    fun: Callable
+        Mapping function.
+    jac: Callable
+        Jacobian function of the mapping.
     """
 
     def __init__(self,
                  shape: Tuple[int, int],
                  fun: Callable,
                  jac: Callable):
+        """
+        Parameters
+        ----------
+        shape : Tuple[int, int]
+            Shape of the mapping.
+        fun : Callable
+            Mapping function.
+        jac : Callable
+            Jacobian function of the mapping.
+
+        Raises
+        ------
+        AssertionError
+            If ``shape`` is not a tuple with two positive intergers.
+        AssertionError
+            If ``fun`` is not callable.
+        AssertionError
+            If ``jac`` is not callable.
+        """
+        assert (isinstance(shape, tuple) and
+                shape == 2 and
+                all([isinstance(size, int) and size > 0 for size in shape])), \
+            "`shape` has to be tuple with two positive integers."
+        assert callable(fun), "`fun` must be callable."
+        assert callable(jac), "`jac` must be callable."
         self.shape = shape
-        self._fun = fun
-        self._jac = jac
-        self.check_attr()
+        self.fun = self._validate_input(fun)
+        self.jac = self._validate_input(jac)
 
-    def check_attr(self):
-        assert callable(self._fun), "`fun` must be callable."
-        assert callable(self._jac), "`jac` must be callable."
+    def _validate_input(self, fun: Callable) -> Callable:
+        """
+        Decorator to validate the input before pass into the function.
 
-        assert isinstance(self.shape, tuple), "shape must be a tuple."
-        assert len(self.shape) == 2, "shape must contains two numbers."
-        assert all([size > 0 and isinstance(size, int) for size in self.shape]), \
-            "Both numbers in shape must be positive integer."
+        Parameters
+        ----------
+        fun : Callable
+            Function to be decorated
 
-    def check_input(self, x: np.ndarray):
-        if x.size != self.shape[1]:
-            raise ValueError("Input size not matching with mapping shape.")
+        Returns
+        -------
+        Callable
+            Function that valide the input.
+        """
+        def decorated_fun(x: np.ndarray) -> np.ndarray:
+            x = np.asarray(x)
+            if x.size != self.shape[1]:
+                raise ValueError("Input size not matching with mapping shape.")
+            return fun(x)
+        return decorated_fun
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
-        self.check_input(x)
-        return self._fun(x)
-
-    def jac(self, x: np.ndarray) -> np.ndarray:
-        self.check_input(x)
-        return self._jac(x)
+        return self.fun(x)
 
     def __repr__(self) -> str:
         return f"SmoothMapping(shape={self.shape})"
 
 
+# pylint:disable=too-few-public-methods
 class LinearMapping(SmoothMapping):
     """
     Linear mapping class, construct smooth mapping from a matrix.
+
+    Attributes
+    ----------
+    mat: ndarray
+        Matrix as the linear mapping.
     """
 
     def __init__(self, mat: np.ndarray):
-        self.mat = np.asarray(mat)
-        if self.mat.ndim != 2:
-            raise ValueError("`mat` must be a matrix.")
+        mat = np.asarray(mat)
+        assert mat.ndim == 2, "`mat` must be a matrix."
+        self.mat = mat
 
         # pylint: disable=unused-argument
         def fun(x): return mat.dot(x)
