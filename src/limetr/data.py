@@ -23,17 +23,12 @@ class Data:
     obs : Vector
         Observations. Assumed to be sorted by the group id.
     obs_se : Vector
-        Standard deviations of observation. Default is one.
+        Standard deviations of observation. Default is one for each observation.
     group_sizes : Vector
-        Number of observations for each group. Default is every observation is
-        one group.
+        Number of observations for each group. Default treat every observation
+        as a group by itself.
     weight : Vector
-        Weights for each observation. Default is one.
-
-    Methods
-    -------
-    check_attr()
-        Check instance attributes and raise ``ValueError`` or ``TypeError``.
+        Weights for each observation. Default is one for each observation.
     """
 
     def __init__(self,
