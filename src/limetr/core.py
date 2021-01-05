@@ -53,25 +53,25 @@ class LimeTr:
         return beta, gamma
 
     def get_residual(self, beta: np.ndarray, split: bool = False) -> np.ndarray:
-        residual = self.data.weights*(self.data.obs - self.fevar.mapping(beta))
+        residual = self.data.weight*(self.data.obs - self.fevar.mapping(beta))
         if split:
             residual = split_by_sizes(residual, self.data.group_sizes)
         return residual
 
     def get_femat(self, beta: np.ndarray, split: bool = False) -> np.ndarray:
-        femat = self.data.weights[:, None]*self.fevar.mapping.jac(beta)
+        femat = self.data.weight[:, None]*self.fevar.mapping.jac(beta)
         if split:
             femat = split_by_sizes(femat, self.data.group_sizes)
         return femat
 
     def get_remat(self, split: bool = True) -> np.ndarray:
-        remat = self.data.weights[:, None]*self.revar.mapping.mat
+        remat = self.data.weight[:, None]*self.revar.mapping.mat
         if split:
             remat = split_by_sizes(remat, self.data.group_sizes)
         return remat
 
     def get_obsvar(self, split: bool = True) -> np.ndarray:
-        obsvar = self.data.obs_se**(2*self.data.weights)
+        obsvar = self.data.obs_se**(2*self.data.weight)
         if split:
             obsvar = split_by_sizes(obsvar, self.data.group_sizes)
         return obsvar

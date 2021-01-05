@@ -4,42 +4,107 @@
 
     Data module.
 """
-from dataclasses import dataclass, field
+import operator
+from numbers import Number
+from typing import Iterable, Union
+
 import numpy as np
-from limetr.utils import check_size, has_no_repeat
+
+from limetr.utils import default_vec_factory, iterable
 
 
-@dataclass
+# pylint: disable=too-many-instance-attributes
 class Data:
-    obs: np.ndarray = field(repr=False)
-    obs_se: np.ndarray = field(default=None, repr=False)
-    group_sizes: np.ndarray = field(default=None, repr=False)
-    index: np.ndarray = field(default=None, repr=False)
-    weights: np.ndarray = field(default=None, repr=False)
+    """
+    Data containers observations and group information.
 
-    def __post_init__(self):
-        self.obs = np.asarray(self.obs)
-        self.num_obs = self.obs.size
+    Attributes
+    ----------
+    obs : Vector
+        Observations. Assumed to be sorted by the group id.
+    obs_se : Vector
+        Standard deviations of observation. Default is one for each observation.
+    group_sizes : Vector
+        Number of observations for each group. Default treat every observation
+        as a group by itself.
+    weight : Vector
+        Weights for each observation. Default is one for each observation.
+    """
 
-        self.obs_se = np.ones(self.num_obs) if self.obs_se is None else np.asarray(self.obs_se)
-        self.group_sizes = np.array([1]*self.num_obs) if self.group_sizes is None else np.asarray(self.group_sizes)
-        self.index = np.arange(self.num_obs) if self.index is None else np.asarray(self.index)
-        self.weights = np.ones(self.num_obs) if self.weights is None else self.weights
+    def __init__(self,
+                 obs: Iterable,
+                 obs_se: Union[Number, Iterable] = 1.0,
+                 group_sizes: Iterable[int] = None,
+                 weight: Union[Number, Iterable] = 1.0):
+        """
+        Parameters
+        ----------
+        obs : Iterable
+            Observations. Assumed to be sorted by the group id.
+        obs_se : Union[Number, Iterable], optional
+            Standard deviations of observation. Default is one.
+        group_sizes : Iterable[int], optional
+            Number of observations for each group. Default is ``None``.
+        weight : Union[Number, Iterable], optional
+            Weights for each observation. Default is one.
+        """
+        self.obs = obs
+        self.obs_se = obs_se
+        self.weight = weight
+        self.group_sizes = group_sizes
 
-        self.num_groups = self.group_sizes.size
+    @property
+    def num_obs(self) -> int:
+        """Number of observations"""
+        return self.obs.size
 
-    def check_attr(self):
-        check_size(self.obs, self.num_obs, vec_name='obs')
-        check_size(self.obs_se, self.num_obs, vec_name='obs_se')
-        check_size(self.group_sizes, self.num_groups, vec_name='group_sizes')
-        check_size(self.index, self.num_obs, vec_name='index')
-        check_size(self.weights, self.num_obs, vec_name="weights")
+    @property
+    def num_groups(self) -> int:
+        """Number of groups"""
+        return self.group_sizes.size
 
-        assert all(self.obs_se > 0.0), "Numbers in obs_se must be positive."
-        assert all(self.group_sizes > 0.0), "Numbers in group_sizes must be positive."
-        assert np.issubdtype(self.group_sizes.dtype, int), "Numbers in group_sizes must be integer."
-        assert has_no_repeat(self.index), "Numbers in index must be unique."
-        assert all(self.weights >= 0) and all(self.weights <= 1), "Weights must be between 0 and 1."
+    obs = property(operator.attrgetter("_obs"))
+
+    @obs.setter
+    def obs(self, vec: Iterable):
+        vec = np.asarray(vec)
+        if any(np.isnan(vec)):
+            raise ValueError("`obs` must not containing nan(s).")
+        self._obs = vec
+
+    obs_se = property(operator.attrgetter("_obs_se"))
+
+    @obs_se.setter
+    def obs_se(self, vec: Union[Number, Iterable]):
+        vec = default_vec_factory(vec, self.num_obs, vec_name="obs_se")
+        if any(vec <= 0.0):
+            raise ValueError("`obs_se` must be all positive.")
+        self._obs_se = vec
+
+    weight = property(operator.attrgetter("_weight"))
+
+    @weight.setter
+    def weight(self, vec: Union[Number, Iterable]):
+        vec = default_vec_factory(vec, self.num_obs, vec_name="weight")
+        if any(vec < 0) or any(vec > 1):
+            raise ValueError("`weight` must be all between 0 and 1.")
+        self._weight = vec
+
+    group_sizes = property(operator.attrgetter("_group_sizes"))
+
+    @group_sizes.setter
+    def group_sizes(self, vec: Union[None, Iterable]):
+        if vec is None:
+            vec = np.ones(self.num_obs, dtype=int)
+        elif iterable(vec):
+            vec = np.asarray(vec).astype(int)
+        else:
+            raise TypeError("Use `None` or a vector to set `group_sizes`.")
+        if any(vec <= 0.0):
+            raise ValueError("`group_sizes` must be all positive.")
+        if sum(vec) != self.num_obs:
+            raise ValueError("Sum of `group_size` must equal to `num_obs`.")
+        self._group_sizes = vec
 
     def __repr__(self) -> str:
         return f"Data(num_obs={self.num_obs}, num_groups={self.num_groups})"

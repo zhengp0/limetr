@@ -57,7 +57,7 @@ class LinearMapping(SmoothMapping):
         if self.mat.ndim != 2:
             raise ValueError("`mat` must be a matrix.")
 
-        #pylint: disable=unused-argument
+        # pylint: disable=unused-argument
         def fun(x): return mat.dot(x)
         def jac(x): return mat
 

@@ -19,8 +19,8 @@ def test_empty_array():
 
 @pytest.mark.parametrize('vec', [[0, 1, 2]])
 @pytest.mark.parametrize('size', [2])
-def test_check_size_assert(vec, size):
-    with pytest.raises(AssertionError):
+def test_check_size_validate(vec, size):
+    with pytest.raises(ValueError):
         utils.check_size(vec, size)
 
 
