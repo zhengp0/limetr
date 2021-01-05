@@ -96,6 +96,12 @@ class LinearMapping(SmoothMapping):
     """
 
     def __init__(self, mat: np.ndarray):
+        """
+        Parameters
+        ----------
+        mat : ndarray
+            Matrix as the linear mapping.
+        """
         mat = np.asarray(mat)
         assert mat.ndim == 2, "`mat` must be a matrix."
         self.mat = mat
