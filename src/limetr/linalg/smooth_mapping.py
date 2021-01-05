@@ -47,7 +47,7 @@ class SmoothMapping:
             If ``jac`` is not callable.
         """
         assert (isinstance(shape, tuple) and
-                shape == 2 and
+                len(shape) == 2 and
                 all([isinstance(size, int) and size > 0 for size in shape])), \
             "`shape` has to be tuple with two positive integers."
         assert callable(fun), "`fun` must be callable."
