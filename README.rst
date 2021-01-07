@@ -1,3 +1,6 @@
+.. image:: https://github.com/zhengp0/limetr/workflows/python-build/badge.svg
+    :target: https://github.com/zhengp0/limetr/actions
+
 LimeTr
 ======
 
