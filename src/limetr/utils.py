@@ -214,3 +214,60 @@ def get_varmat(gamma: np.ndarray,
         for i in range(len(obsvar))
     ]
     return BDLMat(dlmats)
+
+
+def get_maxlen(objs: List[Any]) -> int:
+    """
+    Get the maximum len of a list of objects.
+
+    Parameters
+    ----------
+    objs : List[Any]
+        A list of objects.
+
+    Returns
+    -------
+    int
+        Maximum length among objects.
+    """
+    return max([len(obj) if iterable(obj) else 1 for obj in objs])
+
+
+def broadcast(objs: List[Any],
+              size: int) -> np.ndarray:
+    """
+    Broadcast a list of objects.
+
+    Parameters
+    ----------
+    objs : List[Any]
+        A list of objects.
+    size : int
+        Size for the broadcasting.
+
+    Raises
+    ------
+    ValueError
+        If there is iterable object in the list whose size is not 1 and not
+        agree with broadcast size.
+
+    Returns
+    -------
+    np.ndarray
+        Two dimensional array that stores the squared objects.
+    """
+    size = int(size)
+    assert size >= 0, "Size has to be a non-negative integer."
+    if size == 0:
+        vecs = np.empty(shape=(len(objs), 0))
+    else:
+        for i, obj in enumerate(objs):
+            if np.isscalar(obj) or len(obj) == 1:
+                objs[i] = np.repeat(obj, size)
+            elif len(obj) == size:
+                objs[i] = np.asarray(obj)
+            else:
+                raise ValueError("Object size not consistent with broadcast "
+                                 "size.")
+        vecs = np.vstack(objs)
+    return vecs

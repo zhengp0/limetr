@@ -1,43 +1,151 @@
 """
 Prior Module
 """
-from typing import List, Any
-from dataclasses import dataclass, field
+from numbers import Number
+from typing import Iterable, List, Union, Any
 
 import numpy as np
+from limetr.utils import broadcast, get_maxlen
 
-from limetr.utils import default_vec_factory, iterable, empty_array
 
-
-@dataclass
 class Prior:
     """
-    Prior class, need to be inherited.
+    Generic prior class, need to be inherited.
+
+    Attributes
+    ----------
+    info : ndarray
+        Information array of the prior.
+    size : int
+        Size of the prior.
+
+    Methods
+    -------
+    objective(var)
+        Objective function of optimization interface
+    gradient(var)
+        Gradient function of optimization interface
+    hessian(var)
+        Hessian function of the optimization interface
     """
-    size: int = None
 
-    def process_size(self, vecs: List[Any]):
-        if self.size is None:
-            self.size = max([1] + [len(vec) for vec in vecs if iterable(vec)])
+    def __init__(self,
+                 info: List[Any] = None,
+                 size: int = 0):
+        """
+        Parameters
+        ----------
+        info : List[Any]
+            Information of the prior. Length of the list is number of
+            information components. Each component can be either scalar or a
+            vector. If there are more than one vector with size more than one,
+            the size of the vectors need to match. By default ``None``.
+        size : int, optional
+            Size of the prior, by default 0.
+        """
+        size = max(int(size), get_maxlen(info))
+        info = broadcast(info, size)
+        self.info = info
+        self.size = size
 
-        if self.size <= 0 or not isinstance(self.size, int):
-            raise ValueError("Size of the prior must be a positive number.")
+    @property
+    def is_empty(self) -> bool:
+        """
+        Returns
+        -------
+        bool
+            If prior has zero size.
+        """
+        return self.size == 0
+
+    # pylint:disable=unused-argument
+    # pylint:disable=no-self-use
+    def objective(self, var: np.ndarray) -> float:
+        """
+        Objective function for optimiation interface.
+
+        Parameters
+        ----------
+        var : np.ndarray
+            Variable that prior is acting on.
+
+        Returns
+        -------
+        float
+            Objective value regarding the log likelihood of the prior.
+        """
+        return 0.0
+
+    def gradient(self, var: np.ndarray) -> np.ndarray:
+        """
+        Gradient function for optimiation interface.
+
+        Parameters
+        ----------
+        var : ndarray
+            Variable that prior is acting on.
+
+        Returns
+        -------
+        ndarray
+            Gradient value regarding the log likelihood of the prior.
+        """
+        return np.zeros(len(var))
+
+    def hessian(self, var: np.ndarray) -> np.ndarray:
+        """
+        Hessian function for optimiation interface.
+
+        Parameters
+        ----------
+        var : ndarray
+            Variable that prior is acting on.
+
+        Returns
+        -------
+        ndarray
+            Hessian value regarding the log likelihood of the prior.
+        """
+        return np.zeros((len(var), len(var)))
 
 
-@dataclass
 class GaussianPrior(Prior):
-    mean: np.ndarray = field(default_factory=empty_array, repr=False)
-    sd: np.ndarray = field(default_factory=empty_array, repr=False)
+    """
+    Gaussian Prior
 
-    def __post_init__(self):
-        self.process_size([self.mean, self.sd])
-        self.mean = default_vec_factory(self.mean, self.size, 0.0, vec_name="mean")
-        self.sd = default_vec_factory(self.sd, self.size, 0.0, vec_name="sd")
+    Attributes
+    ----------
+        mean : ndarray
+            Mean vector of the prior.
+        sd : ndarray
+            Standard deviation vector of the prior.
+    """
 
-        if any(self.sd <= 0.0):
-            raise ValueError("Standard deviation must be all positive.")
+    def __init__(self,
+                 mean: Union[Number, Iterable] = 0.0,
+                 sd: Union[Number, Iterable] = np.inf,
+                 size: int = 0):
+        """
+        Parameters
+        ----------
+        mean : Union[Number, Iterable], optional
+            Mean of the Gaussian prior, by default 0.
+        sd : Union[Number, Iterable], optional
+            Standard deviation of the Gaussian prior, by default inf.
+        size : int, optional
+            Size of the prior, by default 0.
 
-    # optimization interface
+        Raises
+        ------
+        ValueError
+            If any standard deviations are less or equal to zero.
+        """
+        super().__init__([mean, sd], size=size)
+        if not all(self.info[1] > 0):
+            raise ValueError("Standard deviations have to be positive numbers.")
+        self.mean = self.info[0]
+        self.sd = self.info[1]
+
     def objective(self, var: np.ndarray) -> float:
         return 0.5*np.sum((var - self.mean)**2/self.sd**2)
 
@@ -49,43 +157,94 @@ class GaussianPrior(Prior):
         return np.diag(1/self.sd**2)
 
 
-@dataclass
 class UniformPrior(Prior):
-    lb: np.ndarray = field(default_factory=empty_array, repr=False)
-    ub: np.ndarray = field(default_factory=empty_array, repr=False)
+    """
+    Uniform Prior
 
-    def __post_init__(self):
-        self.process_size([self.lb, self.ub])
-        self.lb = default_vec_factory(self.lb, self.size, -np.inf, vec_name="lb")
-        self.ub = default_vec_factory(self.ub, self.size, np.inf, vec_name="ub")
+    Attributes
+    ----------
+        lb : ndarray
+            Lower bounds of the prior.
+        ub : ndarray
+            Upper bounds of the prior.
+    """
 
-        if any(self.lb > self.ub):
+    def __init__(self,
+                 lb: Union[Number, Iterable] = -np.inf,
+                 ub: Union[Number, Iterable] = np.inf,
+                 size: int = 0):
+        """
+        Parameters
+        ----------
+        lb : Union[Number, Iterable], optional
+            Lower bounds of the prior, by default -inf
+        ub : Union[Number, Iterable], optional
+            Upper bounds of the prior, by default inf
+        size : int, optional
+            Size of the prior, by default 0
+
+        Raises
+        ------
+        ValueError
+            If any lower bounds are greater than upper bounds.
+        """
+        super().__init__([lb, ub], size=size)
+        if any(self.info[0] > self.info[1]):
             raise ValueError("Lower bounds must be less or equal than upper bounds.")
+        self.lb = self.info[0]
+        self.ub = self.info[1]
 
 
-@dataclass
-class LinearPrior:
-    mat: np.ndarray = field(default_factory=lambda: np.empty(shape=(0, 1)), repr=False)
-    size: int = None
+class LinearPrior(Prior):
+    """
+    Linear Prior
 
-    def __post_init__(self):
-        if self.size is None:
-            self.size = self.mat.shape[0]
+    Attributes
+    ----------
+    mat: ndarray
+        Linear mapping (matrix).
+    """
 
-        if self.size != self.mat.shape[0]:
-            raise ValueError("`mat` and `size` not matching.")
+    def __init__(self,
+                 mat: Iterable,
+                 info: List[Any]):
+        """
+        Parameters
+        ----------
+        mat : Iterable
+            Linear mapping (matrix).
+        info : List[Any]
+            Information array of the prior.
+        """
+        mat = np.asarray(mat)
+        if mat.ndim != 2:
+            raise ValueError("`mat` has to be a matrix.")
+        Prior.__init__(self, info, mat.shape[0])
+        self.mat = mat
 
-    def is_empty(self) -> bool:
-        return self.mat.size == 0
 
-
-@dataclass
 class LinearGaussianPrior(LinearPrior, GaussianPrior):
-    def __post_init__(self):
-        LinearPrior.__post_init__(self)
-        GaussianPrior.__post_init__(self)
+    """
+    Linear Gaussian Prior
+    """
 
-    # optimization interface
+    def __init__(self,
+                 mat: Iterable,
+                 mean: Union[Number, Iterable] = (),
+                 sd: Union[Number, Iterable] = ()):
+        """
+        Parameters
+        ----------
+        mat: Iterable
+            Linear mapping(matrix).
+        mean: Union[Number, Iterable], optional
+            Mean of the prior, by default tuple with zero length.
+        sd: Union[Number, Iterable], optional
+            Standard deviation of the prior, by default tuple with zero length.
+        """
+        LinearPrior.__init__(self, mat, [mean, sd])
+        GaussianPrior.__init__(self, self.info[0], self.info[1], size=self.size)
+
     def objective(self, var: np.ndarray) -> float:
         trans_var = self.mat.dot(var)
         return super().objective(trans_var)
@@ -99,8 +258,29 @@ class LinearGaussianPrior(LinearPrior, GaussianPrior):
         return self.mat.T.dot(super().hessian(trans_var).dot(self.mat))
 
 
-@dataclass
 class LinearUniformPrior(LinearPrior, UniformPrior):
-    def __post_init__(self):
-        LinearPrior.__post_init__(self)
-        UniformPrior.__post_init__(self)
+    """
+    Linear Uniform Prior
+
+    Attributes
+    ----------
+    mat: ndarray
+        Linear mapping(matrix).
+    """
+
+    def __init__(self,
+                 mat: Iterable,
+                 lb: Union[Number, Iterable] = (),
+                 ub: Union[Number, Iterable] = ()):
+        """
+        Parameters
+        ----------
+        mat: Iterable
+            Linear mapping(matrix).
+        lb: Union[Number, Iterable], optional
+            Lower bounds of the prior, by default tuple with zero length.
+        ub: Union[Number, Iterable], optional
+            Upper bounds of the prior, by default tuple with zero length.
+        """
+        LinearPrior.__init__(self, mat, [lb, ub])
+        UniformPrior.__init__(self, self.info[0], self.info[1], size=self.size)
