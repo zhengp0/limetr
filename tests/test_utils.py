@@ -67,3 +67,17 @@ def test_get_varmat():
 
     varmat = utils.get_varmat(gamma, obsvar, remat)
     assert np.isclose(varmat.logdet(), np.log(np.linalg.det(varmat.mat)))
+
+
+@pytest.mark.parametrize("objs", [[[1.0, 2.0, 3.0], 2.0, (2.0, 1.0)]])
+def test_get_maxlen(objs):
+    assert utils.get_maxlen(objs) == 3
+
+
+@pytest.mark.parametrize("objs", [[[1.0, 2.0, 3.0], 2.0, (1.0,)]])
+def test_broadcast(objs):
+    my_result = utils.broadcast(objs, utils.get_maxlen(objs))
+    assert np.allclose(my_result,
+                       np.array([[1.0, 2.0, 3.0],
+                                 [2.0, 2.0, 2.0],
+                                 [1.0, 1.0, 1.0]]))
