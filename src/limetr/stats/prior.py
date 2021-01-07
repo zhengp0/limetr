@@ -261,11 +261,6 @@ class LinearGaussianPrior(LinearPrior, GaussianPrior):
 class LinearUniformPrior(LinearPrior, UniformPrior):
     """
     Linear Uniform Prior
-
-    Attributes
-    ----------
-    mat: ndarray
-        Linear mapping(matrix).
     """
 
     def __init__(self,
