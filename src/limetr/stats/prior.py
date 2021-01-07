@@ -108,6 +108,9 @@ class Prior:
         """
         return np.zeros((len(var), len(var)))
 
+    def __repr__(self) -> str:
+        return f"Prior(size={self.size})"
+
 
 class GaussianPrior(Prior):
     """
@@ -156,6 +159,9 @@ class GaussianPrior(Prior):
     def hessian(self, var: np.ndarray) -> np.ndarray:
         return np.diag(1/self.sd**2)
 
+    def __repr__(self) -> str:
+        return f"GaussianPrior(mean={self.mean}, sd={self.sd})"
+
 
 class UniformPrior(Prior):
     """
@@ -194,6 +200,9 @@ class UniformPrior(Prior):
         self.lb = self.info[0]
         self.ub = self.info[1]
 
+    def __repr__(self) -> str:
+        return f"UniformPrior(lb={self.lb}, ub={self.ub})"
+
 
 class LinearPrior(Prior):
     """
@@ -221,6 +230,9 @@ class LinearPrior(Prior):
             raise ValueError("`mat` has to be a matrix.")
         Prior.__init__(self, info, mat.shape[0])
         self.mat = mat
+
+    def __repr__(self) -> str:
+        return f"LinearPrior(shape={self.mat.shape})"
 
 
 class LinearGaussianPrior(LinearPrior, GaussianPrior):
@@ -257,6 +269,9 @@ class LinearGaussianPrior(LinearPrior, GaussianPrior):
         trans_var = self.mat.dot(var)
         return self.mat.T.dot(super().hessian(trans_var).dot(self.mat))
 
+    def __repr__(self) -> str:
+        return f"LinearGaussianPrior(mean={self.mean}, sd={self.sd}, shape={self.mat.shape})"
+
 
 class LinearUniformPrior(LinearPrior, UniformPrior):
     """
@@ -279,3 +294,6 @@ class LinearUniformPrior(LinearPrior, UniformPrior):
         """
         LinearPrior.__init__(self, mat, [lb, ub])
         UniformPrior.__init__(self, self.info[0], self.info[1], size=self.size)
+
+    def __repr__(self) -> str:
+        return f"LinearUniformPrior(lb={self.lb}, ub={self.ub}, shape={self.mat.shape})"
