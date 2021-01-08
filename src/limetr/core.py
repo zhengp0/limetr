@@ -10,7 +10,7 @@ from scipy.linalg import block_diag
 from scipy.optimize import minimize
 from scipy.optimize import LinearConstraint
 from spmat import BDLMat
-from limetr.variable import FEVariable, REVariable
+from limetr.variable import FeVariable, ReVariable
 from limetr.data import Data
 from limetr.utils import split_by_sizes, get_varmat
 
@@ -22,8 +22,8 @@ class LimeTr:
 
     def __init__(self,
                  data: Data,
-                 fevar: FEVariable,
-                 revar: REVariable,
+                 fevar: FeVariable,
+                 revar: ReVariable,
                  inlier_pct: float = 1.0):
 
         self.data = data
@@ -103,8 +103,8 @@ class LimeTr:
         d = self.get_varmat(gamma)
 
         val = 0.5*(d.logdet() + r.dot(d.invdot(r)))
-        val += self.fevar.get_prior_objective(beta)
-        val += self.revar.get_prior_objective(gamma)
+        val += self.fevar.prior_objective(beta)
+        val += self.revar.prior_objective(gamma)
 
         return val
 
@@ -118,11 +118,11 @@ class LimeTr:
         dr = d.invdot(r)
         split_index = np.cumsum(np.insert(self.data.group_sizes, 0, 0))[:-1]
 
-        grad_beta = -femat.T.dot(dr) + self.fevar.get_prior_gradient(beta)
+        grad_beta = -femat.T.dot(dr) + self.fevar.prior_gradient(beta)
         grad_gamma = 0.5*(
             np.sum(remat*(d.invdot(remat)), axis=0) -
             np.sum(np.add.reduceat(remat.T*dr, split_index, axis=1)**2, axis=1)
-        ) + self.revar.get_prior_gradient(gamma)
+        ) + self.revar.prior_gradient(gamma)
 
         return np.hstack([grad_beta, grad_gamma])
 
@@ -131,9 +131,9 @@ class LimeTr:
         d = self.get_varmat(gamma)
 
         hess_beta = self.get_beta_fisher(beta, d=d) + \
-            self.fevar.get_prior_hessian(beta)
+            self.fevar.prior_hessian(beta)
         hess_gamma = self.get_gamma_fisher(d=d) + \
-            self.revar.get_prior_hessian(gamma)
+            self.revar.prior_hessian(gamma)
 
         return block_diag(hess_beta, hess_gamma)
 
@@ -142,11 +142,12 @@ class LimeTr:
                   options: dict = None):
         var = np.zeros(self.fevar.size + self.revar.size) if var is None else var
 
-        bounds = np.hstack([self.fevar.get_uvec(), self.revar.get_uvec()]).T
-        constraints_mat = block_diag(self.fevar.get_linear_umat(),
-                                     self.revar.get_linear_umat())
-        constraints_vec = np.hstack([self.fevar.get_linear_uvec(),
-                                     self.revar.get_linear_uvec()])
+        bounds = np.hstack([self.fevar.get_uprior_info(),
+                            self.revar.get_uprior_info()]).T
+        constraints_mat = block_diag(self.fevar.get_linear_upriors_mat(),
+                                     self.revar.get_linear_upriors_mat())
+        constraints_vec = np.hstack([self.fevar.get_linear_upriors_info(),
+                                     self.revar.get_linear_upriors_info()])
         constraints = [LinearConstraint(
             constraints_mat,
             constraints_vec[0],
