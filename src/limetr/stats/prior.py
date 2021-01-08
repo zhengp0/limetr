@@ -242,8 +242,8 @@ class LinearGaussianPrior(LinearPrior, GaussianPrior):
 
     def __init__(self,
                  mat: Iterable,
-                 mean: Union[Number, Iterable] = (),
-                 sd: Union[Number, Iterable] = ()):
+                 mean: Union[Number, Iterable] = 0.0,
+                 sd: Union[Number, Iterable] = np.inf):
         """
         Parameters
         ----------
@@ -280,8 +280,8 @@ class LinearUniformPrior(LinearPrior, UniformPrior):
 
     def __init__(self,
                  mat: Iterable,
-                 lb: Union[Number, Iterable] = (),
-                 ub: Union[Number, Iterable] = ()):
+                 lb: Union[Number, Iterable] = -np.inf,
+                 ub: Union[Number, Iterable] = np.inf):
         """
         Parameters
         ----------
