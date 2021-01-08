@@ -81,3 +81,10 @@ def test_broadcast(objs):
                        np.array([[1.0, 2.0, 3.0],
                                  [2.0, 2.0, 2.0],
                                  [1.0, 1.0, 1.0]]))
+
+
+@pytest.mark.parametrize("size", [0])
+@pytest.mark.parametrize("objs", [[[1.0, 2.0, 3.0], 2.0, (1.0,)]])
+def test_broadcast_size_zero(size, objs):
+    my_result = utils.broadcast(objs, size)
+    assert my_result.shape == (len(objs), 0)

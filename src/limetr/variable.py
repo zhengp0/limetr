@@ -62,7 +62,7 @@ class Variable:
 
     def __init__(self,
                  mapping: SmoothMapping,
-                 priors: Iterable[Prior] == (),
+                 priors: Iterable[Prior] = (),
                  name: Any = "unknown"):
         """
         Parameters
@@ -99,7 +99,7 @@ class Variable:
                         prior: Prior,
                         prior_type: Type) -> Prior:
         if not isinstance(prior, prior_type):
-            raise TypeError("`prior` must be type {prior_type.__name__}.")
+            raise TypeError(f"`prior` must be type {prior_type.__name__}.")
         size_matching = prior.mat.shape[1] == self.size \
             if issubclass(prior_type, LinearPrior) else prior.size == self.size
         if not size_matching:
@@ -158,16 +158,23 @@ class Variable:
         Parameters
         ----------
         priors : Iterable[Prior]
+
+        Raises
+        ------
+        TypeError
+            When prior type is not recognizable.
         """
         for prior in priors:
-            if isinstance(prior, GaussianPrior):
-                self.update_gprior(prior)
-            elif isinstance(prior, UniformPrior):
-                self.update_uprior(prior)
-            elif isinstance(prior, LinearGaussianPrior):
+            if isinstance(prior, LinearGaussianPrior):
                 self.update_linear_gpriors(prior)
             elif isinstance(prior, LinearUniformPrior):
                 self.update_linear_upriors(prior)
+            elif isinstance(prior, GaussianPrior):
+                self.update_gprior(prior)
+            elif isinstance(prior, UniformPrior):
+                self.update_uprior(prior)
+            else:
+                raise TypeError(f"Unrecognize prior type {type(prior).__name__}")
 
     def reset_priors(self):
         """
