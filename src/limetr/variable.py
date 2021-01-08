@@ -4,6 +4,7 @@ Variable Module
 from typing import Any, Iterable, Type
 
 import numpy as np
+from numpy import ndarray
 
 from limetr.linalg import LinearMapping, SmoothMapping
 from limetr.stats import (GaussianPrior, LinearGaussianPrior, LinearPrior,
@@ -177,13 +178,13 @@ class Variable:
         self.linear_gpriors = []
         self.linear_upriors = []
 
-    def prior_objective(self, var: np.ndarray) -> float:
+    def prior_objective(self, var: ndarray) -> float:
         """
         Objective function from Gaussian prior and linear Gaussian priors.
 
         Parameters
         ----------
-        var : np.ndarray
+        var : ndarray
             Variables.
 
         Returns
@@ -196,13 +197,13 @@ class Variable:
             val += prior.objective(var)
         return val
 
-    def prior_gradient(self, var: np.ndarray) -> np.ndarray:
+    def prior_gradient(self, var: ndarray) -> ndarray:
         """
         Gradient function from Gaussian prior and linear Gaussian priors.
 
         Parameters
         ----------
-        var : np.ndarray
+        var : ndarray
             Variables.
 
         Returns
@@ -215,13 +216,13 @@ class Variable:
             val += prior.gradient(var)
         return val
 
-    def prior_hessian(self, var: np.ndarray) -> np.ndarray:
+    def prior_hessian(self, var: ndarray) -> ndarray:
         """
         Hessian function from Gaussian prior and linear Gaussian priors.
 
         Parameters
         ----------
-        var : np.ndarray
+        var : ndarray
             Variables.
 
         Returns
@@ -234,13 +235,13 @@ class Variable:
             val += prior.hessian(var)
         return val
 
-    def get_uprior_info(self) -> np.ndarray:
+    def get_uprior_info(self) -> ndarray:
         """
         Get Uniform prior information
 
         Returns
         -------
-        np.ndarray
+        ndarray
             Lower and upper bounds of the prior.
         """
         if self.uprior is None:
@@ -249,7 +250,7 @@ class Variable:
             uprior = self.uprior
         return uprior.info
 
-    def get_linear_upriors_mat(self) -> np.ndarray:
+    def get_linear_upriors_mat(self) -> ndarray:
         """
         Get linear Uniform prior linear mapping
 
@@ -264,7 +265,7 @@ class Variable:
             mat = np.vstack([prior.mat for prior in self.linear_upriors])
         return mat
 
-    def get_linear_upriors_info(self) -> np.ndarray:
+    def get_linear_upriors_info(self) -> ndarray:
         """
         Get linear Unform prior information
 
