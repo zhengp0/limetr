@@ -4,7 +4,7 @@
 
     Main model module.
 """
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
 from numpy import ndarray
@@ -287,7 +287,7 @@ class LimeTr:
         grad_beta = self.gradient(var)[:self.fevar.size]
         hess_beta = self.hessian(var)[:self.fevar.size,
                                       :self.fevar.size]
-        beta = np.linalg.solve(
+        beta = beta - np.linalg.solve(
             hess_beta + np.identity(self.fevar.size),
             grad_beta
         )
@@ -327,6 +327,22 @@ class LimeTr:
                                constraints=constraints,
                                bounds=bounds,
                                options=options)
+
+    @property
+    def soln(self) -> Dict[str, ndarray]:
+        """Solution summary"""
+        if self.result is None:
+            raise ValueError("Please fit the mdoel first.")
+        beta, gamma = self.get_vars(self.result.x)
+        beta_sd, gamma_sd = self.get_vars(1.0/np.sqrt(
+            np.diag(self.hessian(self.result.x))
+        ))
+        return {
+            "beta": beta,
+            "gamma": gamma,
+            "beta_sd": beta_sd,
+            "gamma_sd": gamma_sd
+        }
 
     def __repr__(self) -> str:
         return (f"LimeTr(data={self.data},\n"
