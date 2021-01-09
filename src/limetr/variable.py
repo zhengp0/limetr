@@ -309,7 +309,7 @@ class FeVariable(Variable):
         super().__init__(mapping, priors, name=name)
 
     def __repr__(self) -> str:
-        return f"FeVariable(name={self.name}, size={self.size})"
+        return f"FeVariable(size={self.size})"
 
 
 class ReVariable(Variable):
@@ -349,4 +349,4 @@ class ReVariable(Variable):
         self.linear_upriors = []
 
     def __repr__(self) -> str:
-        return f"ReVariable(name={self.name}, size={self.size})"
+        return f"ReVariable(size={self.size})"

@@ -53,6 +53,8 @@ class LimeTr:
     hessian(var)
         Hessian function of the optimization problem, approximated by the Fisher
         information matrix.
+    get_model_init()
+        Compute model initialization.
     fit_model(var, options)
         Run optimization algorithm to get solution.
     """
@@ -182,7 +184,11 @@ class LimeTr:
         BDLMat
             Weighted variance covariance matrix of the likelihood.
         """
-        return get_varmat(gamma, self.get_obsvar(), self.get_remat())
+        return get_varmat(gamma,
+                          split_by_sizes(self.get_obsvar(),
+                                         self.data.group_sizes),
+                          split_by_sizes(self.get_remat(),
+                                         self.data.group_sizes))
 
     def objective(self, var: ndarray) -> float:
         """
@@ -266,6 +272,27 @@ class LimeTr:
 
         return block_diag(beta_fisher, gamma_fisher)
 
+    def get_model_init(self) -> ndarray:
+        """
+        Get model initializations
+
+        Returns
+        -------
+        ndarray
+            Return the initialization variables.
+        """
+        beta = np.zeros(self.fevar.size)
+        gamma = np.zeros(self.revar.size)
+        var = np.hstack([beta, gamma])
+        grad_beta = self.gradient(var)[:self.fevar.size]
+        hess_beta = self.hessian(var)[:self.fevar.size,
+                                      :self.fevar.size]
+        beta = np.linalg.solve(
+            hess_beta + np.identity(self.fevar.size),
+            grad_beta
+        )
+        return np.hstack([beta, gamma])
+
     def fit_model(self,
                   var: ndarray = None,
                   options: dict = None):
@@ -279,7 +306,7 @@ class LimeTr:
         options : dict, optional
             scipy optimizer options, by default None
         """
-        var = np.zeros(self.fevar.size + self.revar.size) if var is None else var
+        var = self.get_model_init() if var is None else var
 
         bounds = np.hstack([self.fevar.get_uprior_info(),
                             self.revar.get_uprior_info()]).T
@@ -300,3 +327,9 @@ class LimeTr:
                                constraints=constraints,
                                bounds=bounds,
                                options=options)
+
+    def __repr__(self) -> str:
+        return (f"LimeTr(data={self.data},\n"
+                f"       fevar={self.fevar},\n"
+                f"       revar={self.revar},\n"
+                f"       inlier_pct={self.inlier_pct})")
