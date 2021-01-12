@@ -57,6 +57,8 @@ class LimeTr:
         Compute model initialization.
     fit_model(var, options)
         Run optimization algorithm to get solution.
+    get_random_effects(var)
+        Given estimate of beta and gamma, return the estimate of random effects.
     """
 
     def __init__(self,
@@ -328,6 +330,37 @@ class LimeTr:
                                bounds=bounds,
                                options=options)
 
+    def get_random_effects(self, var: ndarray) -> ndarray:
+        """
+        Estimate random effects given beta and gamma
+
+        Parameters
+        ----------
+        var : ndarray
+            Variable include fixed effects and variance of random effects.
+
+        Returns
+        -------
+        ndarray
+            An array contains random effects.
+        """
+        beta, gamma = self.get_vars(var)
+        residual = split_by_sizes(self.get_residual(beta),
+                                  self.data.group_sizes)
+        obsvar = split_by_sizes(self.get_obsvar(),
+                                self.data.group_sizes)
+        remat = split_by_sizes(self.get_remat(),
+                               self.data.group_sizes)
+        random_effects = np.vstack([
+            gamma*np.linalg.solve(
+                (remat[i].T/obsvar[i]).dot(remat[i]*gamma) + np.identity(self.revar.size),
+                (remat[i].T/obsvar[i]).dot(residual[i])
+            )
+            for i in range(self.data.num_groups)
+        ])
+
+        return random_effects
+
     @property
     def soln(self) -> Dict[str, ndarray]:
         """Solution summary"""
@@ -337,11 +370,13 @@ class LimeTr:
         beta_sd, gamma_sd = self.get_vars(1.0/np.sqrt(
             np.diag(self.hessian(self.result.x))
         ))
+        random_effects = self.get_random_effects(self.result.x)
         return {
             "beta": beta,
             "gamma": gamma,
             "beta_sd": beta_sd,
-            "gamma_sd": gamma_sd
+            "gamma_sd": gamma_sd,
+            "random_effects": random_effects
         }
 
     def __repr__(self) -> str:

@@ -155,3 +155,9 @@ def test_get_model_init(model):
 def test_fit_model(model):
     model.fit_model()
     assert model.result is not None
+
+
+@pytest.mark.parametrize("var", [np.hstack([np.zeros(2), np.zeros(2)])])
+def test_get_random_effects(model, var):
+    random_effects = model.get_random_effects(var)
+    assert np.allclose(random_effects, 0.0)
