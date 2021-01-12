@@ -153,11 +153,6 @@ def test_get_model_init(model):
     assert all(gamma >= 0.0)
 
 
-def test_fit_model(model):
-    model.fit_model()
-    assert model.result is not None
-
-
 @pytest.mark.parametrize("var", [np.hstack([np.zeros(2), np.zeros(2)])])
 def test_get_random_effects_zero_gamma(model, var):
     random_effects = model.get_random_effects(var)
@@ -179,10 +174,3 @@ def test_get_random_effects_nonzero_gamma(model, var):
         grad_fun(z[i], v[i], r[i], gamma, u[i])
         for i in range(model.data.num_groups)
     ]), 0.0)
-
-
-@pytest.mark.parametrize("inlier_pct", [0.7])
-def test_trimming(model, inlier_pct):
-    model.inlier_pct = inlier_pct
-    model.fit_model(num_tr_steps=2)
-    assert model.data.weight.sum() == 4
