@@ -4,20 +4,61 @@
 
     Main model module.
 """
-from typing import Tuple
+from typing import Tuple, Dict
+
 import numpy as np
+from numpy import ndarray
 from scipy.linalg import block_diag
-from scipy.optimize import minimize
-from scipy.optimize import LinearConstraint
+from scipy.optimize import LinearConstraint, minimize
 from spmat import BDLMat
-from limetr.variable import FeVariable, ReVariable
+
 from limetr.data import Data
-from limetr.utils import split_by_sizes, get_varmat
+from limetr.utils import get_varmat, split_by_sizes
+from limetr.variable import FeVariable, ReVariable
 
 
 class LimeTr:
     """
     LimeTr model class
+
+    Attributes
+    ----------
+    data : Data
+        Data object contains the observations
+    fevar : FeVariable
+        Fixed effects variable
+    revar : ReVariable
+        Random effects variable
+    inlier_pct : float
+        Inlier percentage
+
+    Methods
+    -------
+    get_vars(var)
+        Split array into variables beta and gamma.
+    get_residual(beta)
+        Compute trimming weighted residual.
+    get_femat(beta)
+        Compute trimming weighted Jacobian matrix of fixed effects.
+    get_remat()
+        Compute trimming weighted design matrix of random effects.
+    get_obsvar()
+        Compute trimming weighted observation variance.
+    get_varmat(gamma)
+        Compute trimming weighted variance covariance matrix of the likelihood
+    objective(var)
+        Objective function of the optimiation problem
+    gradient(var)
+        Gradient function of the optimization problem
+    hessian(var)
+        Hessian function of the optimization problem, approximated by the Fisher
+        information matrix.
+    get_model_init()
+        Compute model initialization.
+    fit_model(var, options)
+        Run optimization algorithm to get solution.
+    get_random_effects(var)
+        Given estimate of beta and gamma, return the estimate of random effects.
     """
 
     def __init__(self,
@@ -25,79 +66,145 @@ class LimeTr:
                  fevar: FeVariable,
                  revar: ReVariable,
                  inlier_pct: float = 1.0):
+        """
+        Parameters
+        ----------
+        data : Data
+            Data object contains the observations.
+        fevar : FeVariable
+            Fixed effects variable.
+        revar : ReVariable
+            Random effects variable.
+        inlier_pct : float, optional
+            Inlier percentage, by default 1
+
+        Raises
+        ------
+        ValueError
+            When fixed effects shape not matching with the data.
+        ValueError
+            When random effects shape not matching with the data.
+        ValueError
+            When the inlier percentage is outside zero to one interval.
+        """
+
+        if data.num_obs != fevar.mapping.shape[0]:
+            raise ValueError("Fixed effects shape not matching with data.")
+        if data.num_obs != revar.mapping.shape[0]:
+            raise ValueError("Random effects shape not matching with data.")
+        if inlier_pct < 0 or inlier_pct > 1:
+            raise ValueError("`inlier_pct` must be between 0 and 1.")
 
         self.data = data
         self.fevar = fevar
         self.revar = revar
         self.inlier_pct = inlier_pct
-
-        self.check_attr()
-
         self.result = None
 
-    def check_attr(self):
-        # check size
-        if self.data.num_obs != self.fevar.mapping.shape[0]:
-            raise ValueError("Fixed effects shape not matching data.")
-        if self.data.num_obs != self.revar.mapping.shape[0]:
-            raise ValueError("Random effects shape not matching data.")
-        # check inlier percentage
-        if self.inlier_pct < 0 or self.inlier_pct > 1:
-            raise ValueError("`inlier_pct` must be between 0 and 1.")
+    # pylint:disable=unbalanced-tuple-unpacking
+    def get_vars(self, var: ndarray) -> Tuple[ndarray, ndarray]:
+        """
+        Split array into variables beta and gamma.
 
-    def get_vars(self, var: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        variables = split_by_sizes(var, [self.fevar.size, self.revar.size])
-        beta = variables[0]
-        gamma = variables[1]
+        Parameters
+        ----------
+        var : ndarray
+
+        Returns
+        -------
+        Tuple[ndarray, ndarray]
+            Return beta and gamma.
+        """
+        beta, gamma = tuple(split_by_sizes(var, [self.fevar.size,
+                                                 self.revar.size]))
         gamma[gamma < 0] = 0.0
         return beta, gamma
 
-    def get_residual(self, beta: np.ndarray, split: bool = False) -> np.ndarray:
-        residual = self.data.weight*(self.data.obs - self.fevar.mapping(beta))
-        if split:
-            residual = split_by_sizes(residual, self.data.group_sizes)
-        return residual
+    def get_residual(self, beta: ndarray) -> ndarray:
+        """
+        Compute trimming weighted residual
 
-    def get_femat(self, beta: np.ndarray, split: bool = False) -> np.ndarray:
-        femat = self.data.weight[:, None]*self.fevar.mapping.jac(beta)
-        if split:
-            femat = split_by_sizes(femat, self.data.group_sizes)
-        return femat
+        Parameters
+        ----------
+        beta : ndarray
 
-    def get_remat(self, split: bool = True) -> np.ndarray:
-        remat = self.data.weight[:, None]*self.revar.mapping.mat
-        if split:
-            remat = split_by_sizes(remat, self.data.group_sizes)
-        return remat
+        Returns
+        -------
+        ndarray
+            Weighted residual
+        """
+        return self.data.weight*(self.data.obs -
+                                 self.fevar.mapping(beta))
 
-    def get_obsvar(self, split: bool = True) -> np.ndarray:
-        obsvar = self.data.obs_se**(2*self.data.weight)
-        if split:
-            obsvar = split_by_sizes(obsvar, self.data.group_sizes)
-        return obsvar
+    def get_femat(self, beta: ndarray) -> ndarray:
+        """
+        Compute trimming weighted Jacobian matrix of fixed effects.
 
-    def get_varmat(self, gamma) -> BDLMat:
-        return get_varmat(gamma, self.get_obsvar(), self.get_remat())
+        Parameters
+        ----------
+        beta : ndarray
 
-    def get_beta_fisher(self,
-                        beta: np.ndarray,
-                        gamma: np.ndarray = None,
-                        d: BDLMat = None) -> np.ndarray:
-        d = self.get_varmat(gamma) if d is None else d
-        femat = self.get_femat(beta, split=False)
-        return femat.T.dot(d.invdot(femat))
+        Returns
+        -------
+        ndarray
+            Weighted Jacobian matrix of fixed effects.
+        """
+        return self.data.weight[:, None]*self.fevar.mapping.jac(beta)
 
-    def get_gamma_fisher(self,
-                         gamma: np.ndarray = None,
-                         d: BDLMat = None) -> np.ndarray:
-        d = self.get_varmat(gamma) if d is None else d
-        remat = self.get_remat(split=True)
-        gamma_fisher = np.zeros((self.revar.size, self.revar.size))
-        for i in range(self.data.num_groups):
-            gamma_fisher += 0.5*(remat[i].T.dot(d.dlmats[i].invdot(remat[i])))**2
-        return gamma_fisher
+    def get_remat(self) -> ndarray:
+        """
+        Compute trimming weighted design matrix of random effects.
 
-    def objective(self, var: np.ndarray) -> float:
+        Returns
+        -------
+        ndarray
+            Weighted design matrix of random effects.
+        """
+        return self.data.weight[:, None]*self.revar.mapping.mat
+
+    def get_obsvar(self) -> ndarray:
+        """
+        Compute trimming weighted observation variance
+
+        Returns
+        -------
+        ndarray
+            Weighted observation variance
+        """
+        return self.data.obs_se**(2*self.data.weight)
+
+    def get_varmat(self, gamma: ndarray) -> BDLMat:
+        """
+        Compute trimming weighted variance covariance matrix of the likelihood
+
+        Parameters
+        ----------
+        gamma : ndarray
+
+        Returns
+        -------
+        BDLMat
+            Weighted variance covariance matrix of the likelihood.
+        """
+        return get_varmat(gamma,
+                          split_by_sizes(self.get_obsvar(),
+                                         self.data.group_sizes),
+                          split_by_sizes(self.get_remat(),
+                                         self.data.group_sizes))
+
+    def objective(self, var: ndarray) -> float:
+        """
+        Objective function of the optimization problem.
+
+        Parameters
+        ----------
+        var : ndarray
+
+        Returns
+        -------
+        float
+            Objective function value.
+        """
         beta, gamma = self.get_vars(var)
         r = self.get_residual(beta)
         d = self.get_varmat(gamma)
@@ -108,12 +215,24 @@ class LimeTr:
 
         return val
 
-    def gradient(self, var: np.ndarray) -> np.ndarray:
+    def gradient(self, var: ndarray) -> ndarray:
+        """
+        Gradient function of the optimization problem
+
+        Parameters
+        ----------
+        var : ndarray
+
+        Returns
+        -------
+        ndarray
+            Gradient at given variable.
+        """
         beta, gamma = self.get_vars(var)
         r = self.get_residual(beta)
         d = self.get_varmat(gamma)
-        femat = self.get_femat(beta, split=False)
-        remat = self.get_remat(split=False)
+        femat = self.get_femat(beta)
+        remat = self.get_remat()
 
         dr = d.invdot(r)
         split_index = np.cumsum(np.insert(self.data.group_sizes, 0, 0))[:-1]
@@ -126,21 +245,70 @@ class LimeTr:
 
         return np.hstack([grad_beta, grad_gamma])
 
-    def hessian(self, var: np.ndarray) -> np.ndarray:
+    def hessian(self, var: ndarray) -> ndarray:
+        """
+        Hessian function of the optimization problem, approximated by the Fisher
+        information matrix.
+
+        Parameters
+        ----------
+        var : ndarray
+
+        Returns
+        -------
+        ndarray
+            Hessian at given variable.
+        """
         beta, gamma = self.get_vars(var)
         d = self.get_varmat(gamma)
+        femat = self.get_femat(beta)
+        remat = split_by_sizes(self.get_remat(), self.data.group_sizes)
 
-        hess_beta = self.get_beta_fisher(beta, d=d) + \
-            self.fevar.prior_hessian(beta)
-        hess_gamma = self.get_gamma_fisher(d=d) + \
-            self.revar.prior_hessian(gamma)
+        beta_fisher = femat.T.dot(d.invdot(femat))
+        beta_fisher += self.fevar.prior_hessian(beta)
 
-        return block_diag(hess_beta, hess_gamma)
+        gamma_fisher = np.zeros((self.revar.size, self.revar.size))
+        for i, dlmat in enumerate(d.dlmats):
+            gamma_fisher += 0.5*(remat[i].T.dot(dlmat.invdot(remat[i])))**2
+        gamma_fisher += self.revar.prior_hessian(gamma)
+
+        return block_diag(beta_fisher, gamma_fisher)
+
+    def get_model_init(self) -> ndarray:
+        """
+        Get model initializations
+
+        Returns
+        -------
+        ndarray
+            Return the initialization variables.
+        """
+        beta = np.zeros(self.fevar.size)
+        gamma = np.zeros(self.revar.size)
+        var = np.hstack([beta, gamma])
+        grad_beta = self.gradient(var)[:self.fevar.size]
+        hess_beta = self.hessian(var)[:self.fevar.size,
+                                      :self.fevar.size]
+        beta = beta - np.linalg.solve(
+            hess_beta + np.identity(self.fevar.size),
+            grad_beta
+        )
+        return np.hstack([beta, gamma])
 
     def fit_model(self,
-                  var: np.ndarray = None,
+                  var: ndarray = None,
                   options: dict = None):
-        var = np.zeros(self.fevar.size + self.revar.size) if var is None else var
+        """
+        Fit model function
+
+        Parameters
+        ----------
+        var : ndarray, optional
+            Initial guess of the variable, by default None
+        options : dict, optional
+            scipy optimizer options, by default None
+        """
+        var = self.get_model_init() if var is None else var
 
         bounds = np.hstack([self.fevar.get_uprior_info(),
                             self.revar.get_uprior_info()]).T
@@ -161,3 +329,58 @@ class LimeTr:
                                constraints=constraints,
                                bounds=bounds,
                                options=options)
+
+    def get_random_effects(self, var: ndarray) -> ndarray:
+        """
+        Estimate random effects given beta and gamma
+
+        Parameters
+        ----------
+        var : ndarray
+            Variable include fixed effects and variance of random effects.
+
+        Returns
+        -------
+        ndarray
+            An array contains random effects.
+        """
+        beta, gamma = self.get_vars(var)
+        residual = split_by_sizes(self.get_residual(beta),
+                                  self.data.group_sizes)
+        obsvar = split_by_sizes(self.get_obsvar(),
+                                self.data.group_sizes)
+        remat = split_by_sizes(self.get_remat(),
+                               self.data.group_sizes)
+        random_effects = np.vstack([
+            gamma*np.linalg.solve(
+                (remat[i].T/obsvar[i]).dot(remat[i]*gamma) + np.identity(self.revar.size),
+                (remat[i].T/obsvar[i]).dot(residual[i])
+            )
+            for i in range(self.data.num_groups)
+        ])
+
+        return random_effects
+
+    @property
+    def soln(self) -> Dict[str, ndarray]:
+        """Solution summary"""
+        if self.result is None:
+            raise ValueError("Please fit the mdoel first.")
+        beta, gamma = self.get_vars(self.result.x)
+        beta_sd, gamma_sd = self.get_vars(1.0/np.sqrt(
+            np.diag(self.hessian(self.result.x))
+        ))
+        random_effects = self.get_random_effects(self.result.x)
+        return {
+            "beta": beta,
+            "gamma": gamma,
+            "beta_sd": beta_sd,
+            "gamma_sd": gamma_sd,
+            "random_effects": random_effects
+        }
+
+    def __repr__(self) -> str:
+        return (f"LimeTr(data={self.data},\n"
+                f"       fevar={self.fevar},\n"
+                f"       revar={self.revar},\n"
+                f"       inlier_pct={self.inlier_pct})")

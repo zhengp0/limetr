@@ -5,6 +5,7 @@ import pytest
 import numpy as np
 from limetr.data import Data
 
+
 # pylint:disable=redefined-outer-name
 
 
