@@ -53,9 +53,11 @@ class LimeTr:
     hessian(var)
         Hessian function of the optimization problem, approximated by the Fisher
         information matrix.
+    get_fitting_score(var)
+        Return the fitting score from the log likelihood.
     get_model_init()
         Compute model initialization.
-    fit_model(var, options)
+    fit_model(var=None, num_tr_steps=3, options=None)
         Run optimization algorithm to get solution.
     get_random_effects(var)
         Given estimate of beta and gamma, return the estimate of random effects.
@@ -274,6 +276,29 @@ class LimeTr:
 
         return block_diag(beta_fisher, gamma_fisher)
 
+    def get_fitting_score(self, var: ndarray) -> ndarray:
+        """
+        Compute the fitting score, based on log likelihood
+
+        Parameters
+        ----------
+        var : ndarray
+
+        Returns
+        -------
+        ndarray
+            Fitting scores for each data point.
+        """
+        beta, gamma = self.get_vars(var)
+        r = self.data.obs - self.fevar.mapping(beta)
+        v = self.data.obs_se**2
+        z = self.revar.mapping.mat
+        u = np.repeat(self.get_random_effects(var),
+                      self.data.group_sizes,
+                      axis=0)
+        r -= np.sum(z*u, axis=1)
+        return 0.5*(r**2/v + np.sum(u**2/gamma, axis=1))
+
     def get_model_init(self) -> ndarray:
         """
         Get model initializations
@@ -295,11 +320,11 @@ class LimeTr:
         )
         return np.hstack([beta, gamma])
 
-    def fit_model(self,
-                  var: ndarray = None,
-                  options: dict = None):
+    def _fit_model(self,
+                   var: ndarray = None,
+                   options: Dict = None):
         """
-        Fit model function
+        (Inner) Fit model function
 
         Parameters
         ----------
@@ -330,6 +355,42 @@ class LimeTr:
                                bounds=bounds,
                                options=options)
 
+    def fit_model(self,
+                  var: ndarray = None,
+                  num_tr_steps: int = 3,
+                  options: Dict = None):
+        """
+        Fit model function
+
+        Parameters
+        ----------
+        var : ndarray, optional
+            Initial guess of the variable, by default None
+        num_tr_steps : int, optional
+            Number of trimming steps, by default 3
+        options : Dict, optional
+            scipy optimizer options, by default None
+
+        Raises
+        ------
+        ValueError
+            When ``num_tr_steps`` is strictly less than 2.
+        """
+
+        num_tr_steps = int(num_tr_steps)
+        if num_tr_steps < 2:
+            raise ValueError("At least two trimming steps.")
+
+        num_outliers = int((1.0 - self.inlier_pct)*self.data.num_obs)
+        self._fit_model(var=var, options=options)
+        if num_outliers != 0:
+            for w in np.linspace(1.0, 0.0, num_tr_steps):
+                fitting_score = self.get_fitting_score(self.result.x)
+                sort_index = np.argsort(fitting_score)
+                self.data.weight.fill(1.0)
+                self.data.weight[sort_index[-num_outliers:]] = w
+                self._fit_model(var=self.result.x, options=options)
+
     def get_random_effects(self, var: ndarray) -> ndarray:
         """
         Estimate random effects given beta and gamma
@@ -337,7 +398,6 @@ class LimeTr:
         Parameters
         ----------
         var : ndarray
-            Variable include fixed effects and variance of random effects.
 
         Returns
         -------
