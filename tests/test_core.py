@@ -8,6 +8,7 @@ from limetr.data import Data
 from limetr.linalg import LinearMapping
 from limetr.variable import FeVariable, ReVariable
 from limetr.core import LimeTr
+from limetr.utils import split_by_sizes
 
 
 # pylint:disable=redefined-outer-name
@@ -158,6 +159,23 @@ def test_fit_model(model):
 
 
 @pytest.mark.parametrize("var", [np.hstack([np.zeros(2), np.zeros(2)])])
-def test_get_random_effects(model, var):
+def test_get_random_effects_zero_gamma(model, var):
     random_effects = model.get_random_effects(var)
     assert np.allclose(random_effects, 0.0)
+
+
+@pytest.mark.parametrize("var", [np.hstack([np.zeros(2), np.ones(2)])])
+def test_get_random_effects_nonzero_gamma(model, var):
+    beta, gamma = model.get_vars(var)
+    u = model.get_random_effects(var)
+    r = split_by_sizes(model.get_residual(beta), model.data.group_sizes)
+    v = split_by_sizes(model.get_obsvar(), model.data.group_sizes)
+    z = split_by_sizes(model.get_remat(), model.data.group_sizes)
+
+    def grad_fun(z, v, r, gamma, u):
+        return (z.T/v).dot(z.dot(u) - r) + u/gamma
+
+    assert np.allclose(np.hstack([
+        grad_fun(z[i], v[i], r[i], gamma, u[i])
+        for i in range(model.data.num_groups)
+    ]), 0.0)
