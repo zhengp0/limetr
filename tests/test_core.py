@@ -51,22 +51,33 @@ def revar():
 
 
 @pytest.fixture
-def model(data, fevar, revar):
-    return LimeTr(data, fevar, revar)
+def inlier_pct():
+    return 0.95
+
+
+@pytest.fixture
+def model(data, fevar, revar, inlier_pct):
+    return LimeTr(data, fevar, revar, inlier_pct=inlier_pct)
 
 
 @pytest.mark.parametrize("my_fevar",
                          [FeVariable(LinearMapping(np.ones((4, 3))))])
-def test_validate_fevar(data, my_fevar, revar):
+def test_validate_fevar(data, my_fevar, revar, inlier_pct):
     with pytest.raises(ValueError):
-        LimeTr(data, my_fevar, revar)
+        LimeTr(data, my_fevar, revar, inlier_pct=inlier_pct)
 
 
 @pytest.mark.parametrize("my_revar",
                          [ReVariable(LinearMapping(np.ones((4, 3))))])
-def test_validate_revar(data, fevar, my_revar):
+def test_validate_revar(data, fevar, my_revar, inlier_pct):
     with pytest.raises(ValueError):
-        LimeTr(data, fevar, my_revar)
+        LimeTr(data, fevar, my_revar, inlier_pct=inlier_pct)
+
+
+@pytest.mark.parametrize("my_inlier_pct", [-0.1, 1.1])
+def test_validate_inlier_pct(data, fevar, revar, my_inlier_pct):
+    with pytest.raises(ValueError):
+        LimeTr(data, fevar, revar, inlier_pct=my_inlier_pct)
 
 
 @pytest.mark.parametrize("var",
