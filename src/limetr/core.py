@@ -9,6 +9,7 @@ from typing import Tuple, Dict
 import numpy as np
 from numpy import ndarray
 from scipy.linalg import block_diag
+from scipy.stats import norm
 from scipy.optimize import LinearConstraint, minimize
 from spmat import BDLMat
 
@@ -29,6 +30,8 @@ class LimeTr:
         Fixed effects variable
     revar : ReVariable
         Random effects variable
+    inlier_pct : float
+        Inlier percentage
 
     Methods
     -------
@@ -64,7 +67,8 @@ class LimeTr:
     def __init__(self,
                  data: Data,
                  fevar: FeVariable,
-                 revar: ReVariable):
+                 revar: ReVariable,
+                 inlier_pct: float = 1.0):
         """
         Parameters
         ----------
@@ -74,6 +78,8 @@ class LimeTr:
             Fixed effects variable.
         revar : ReVariable
             Random effects variable.
+        inlier_pct : float, optional
+            Inlier percentage, by default 1
 
         Raises
         ------
@@ -89,10 +95,13 @@ class LimeTr:
             raise ValueError("Fixed effects shape not matching with data.")
         if data.num_obs != revar.mapping.shape[0]:
             raise ValueError("Random effects shape not matching with data.")
+        if inlier_pct < 0 or inlier_pct > 1:
+            raise ValueError("`inlier_pct` must be between 0 and 1.")
 
         self.data = data
         self.fevar = fevar
         self.revar = revar
+        self.inlier_pct = inlier_pct
         self.result = None
 
     # pylint:disable=unbalanced-tuple-unpacking
@@ -285,7 +294,8 @@ class LimeTr:
         r = self.data.obs - self.fevar.mapping(beta)
         s = np.sqrt(self.data.obs_se**2 +
                     np.sum(self.revar.mapping.mat**2*gamma, axis=1))
-        return np.abs(r) > 1.96*s
+        a = norm.ppf(0.5 + 0.5*self.inlier_pct)
+        return np.abs(r) > a*s
 
     def get_model_init(self) -> ndarray:
         """
@@ -345,7 +355,6 @@ class LimeTr:
 
     def fit_model(self,
                   var: ndarray = None,
-                  trim: bool = False,
                   trim_steps: int = 3,
                   options: Dict = None):
         """
@@ -355,8 +364,6 @@ class LimeTr:
         ----------
         var : ndarray, optional
             Initial guess of the variable, by default None
-        trim : bool, optional
-            If trim or not, by default False.
         trim_steps : int, optional
             Number of trimming steps, by default 3
         options : Dict, optional
@@ -373,13 +380,14 @@ class LimeTr:
             raise ValueError("At least two trimming steps.")
 
         self._fit_model(var=var, options=options)
-        index = self.detect_outliers(self.result.x)
-        if trim and index.sum() > 0:
-            for w in np.linspace(1.0, 0.0, trim_steps):
-                self.data.weight.fill(1.0)
-                self.data.weight[index] = w
-                self._fit_model(var=self.result.x, options=options)
-                index = self.detect_outliers(self.result.x)
+        if self.inlier_pct < 1.0:
+            index = self.detect_outliers(self.result.x)
+            if index.sum() > 0:
+                for weight in np.linspace(1.0, 0.0, trim_steps)[1:]:
+                    self.data.weight.fill(1.0)
+                    self.data.weight[index] = weight
+                    self._fit_model(var=self.result.x, options=options)
+                    index = self.detect_outliers(self.result.x)
 
     def get_random_effects(self, var: ndarray) -> ndarray:
         """
@@ -432,4 +440,5 @@ class LimeTr:
     def __repr__(self) -> str:
         return (f"LimeTr(data={self.data},\n"
                 f"       fevar={self.fevar},\n"
-                f"       revar={self.revar})")
+                f"       revar={self.revar},\n"
+                f"       inlier_pct={self.inlier_pct})")
