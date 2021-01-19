@@ -13,7 +13,7 @@ def funnel(model: LimeTr,
            ax: Axes = None,
            sd_ub: float = 1.0,
            ui_bounds: Tuple[float, float] = None,
-           summarize: bool = False) -> Axes:
+           summarize: bool = True) -> Axes:
     """
     Create funnel plot of the model
 
@@ -30,7 +30,7 @@ def funnel(model: LimeTr,
         If ``None`` it will be infered from ``model.inlier_pct``.
     summarize : bool, optional
         If ``summarize``, a text box with information will be printed out,
-        default by ``False``.
+        default by ``True``.
 
     Returns
     -------
