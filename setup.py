@@ -16,7 +16,8 @@ if __name__ == '__main__':
     install_requirements = [
         'numpy',
         'scipy',
-        'spmat'
+        'spmat',
+        'matplotlib'
     ]
 
     test_requirements = [
