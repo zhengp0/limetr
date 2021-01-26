@@ -10,6 +10,10 @@ Moreover the package also provides robust regression option called "trimming".
 Install
 -------
 
-Currently, we do not provide automatic installation like :code:`pip` or :code:`conda`.
-The package requires basic computational packages including :code:`numpy`, :code:`scipy`,
-testing package :code:`pytest`.
+The package can be installed through ``pip``,
+.. code-block:: bash
+    pip install limetr
+
+Or you could install from source, by clone this repository and do,
+.. code-block:: bash
+    python setup.py install
