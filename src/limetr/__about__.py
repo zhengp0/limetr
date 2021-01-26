@@ -7,7 +7,7 @@ __title__ = "limetr"
 __summary__ = "limetr: linear mixed effects model with trimming."
 __uri__ = "https://github.com/zhengp0/limetr"
 
-__version__ = "0.0.0"
+__version__ = "0.1.0"
 
 __author__ = "Peng Zheng"
 __email__ = "zhengp@uw.eud"
