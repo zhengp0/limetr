@@ -13,9 +13,11 @@ Install
 The package can be installed through ``pip``,
 
 .. code-block:: bash
+
     pip install limetr
 
 Or you could install from source, by clone this repository and do,
 
 .. code-block:: bash
+
     python setup.py install
