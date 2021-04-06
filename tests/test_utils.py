@@ -59,16 +59,6 @@ def test_default_vec_factory(vec, size, default_value, result):
     assert np.allclose(my_result, result)
 
 
-def test_get_varmat():
-    np.random.seed(123)
-    gamma = np.full(5, 0.1)
-    obsvar = [np.full(6, (i + 1)/10) for i in range(3)]
-    remat = [np.random.randn(6, 5) for i in range(3)]
-
-    varmat = utils.get_varmat(gamma, obsvar, remat)
-    assert np.isclose(varmat.logdet(), np.log(np.linalg.det(varmat.mat)))
-
-
 @pytest.mark.parametrize("objs", [[[1.0, 2.0, 3.0], 2.0, (2.0, 1.0)]])
 def test_get_maxlen(objs):
     assert utils.get_maxlen(objs) == 3

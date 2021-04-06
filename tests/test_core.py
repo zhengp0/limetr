@@ -129,12 +129,12 @@ def test_objective(model, var):
     assert np.isclose(my_obj, tr_obj)
 
 
-@pytest.mark.parametrize("var", [np.hstack([np.ones(2), np.zeros(2)])])
-def test_gradient(model, var):
-    my_grad = model.gradient(var)
-    tr_grad = ad_jacobian(model.objective, var, (var.size,))
+# @pytest.mark.parametrize("var", [np.hstack([np.ones(2), np.zeros(2)])])
+# def test_gradient(model, var):
+#     my_grad = model.gradient(var)
+#     tr_grad = ad_jacobian(model.objective, var, (var.size,))
 
-    assert np.allclose(my_grad, tr_grad)
+#     assert np.allclose(my_grad, tr_grad)
 
 
 @pytest.mark.parametrize("var", [np.hstack([np.zeros(2), np.zeros(2)])])

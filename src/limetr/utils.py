@@ -178,44 +178,6 @@ def sizes_to_slices(sizes: Iterable) -> List[slice]:
     return [slice(*pair) for pair in zip(starts, ends)]
 
 
-def get_varmat(gamma: np.ndarray,
-               obsvar: List[np.ndarray],
-               remat: List[np.ndarray]) -> BDLMat:
-    """
-    Function that compute the variance-covariance matrix for the mixed effects
-    model, used in optimization interface.
-
-    Parameters
-    ----------
-    gamma : ndarray
-        Variance vector of the random effects.
-    obsvar : List[ndarray]
-        Variance vectors of the obervation errors. Each array in the list
-        corresponding to a group.
-    remat : List[ndarray]
-        Random effects design matrices. Each matrix in the list corresponding to
-        a group.
-
-    Raises
-    ------
-    AssertionError
-        If length of ``obsvar`` does not equal to length of ``remat``. Both
-        lengths should agree with number of groups.
-
-    Returns
-    -------
-    BDLMat
-        Block diagonal matrix object.
-    """
-    assert len(obsvar) == len(remat)
-    sqrt_gamma = np.sqrt(gamma)
-    dlmats = [
-        DLMat(obsvar[i], remat[i]*sqrt_gamma)
-        for i in range(len(obsvar))
-    ]
-    return BDLMat(dlmats)
-
-
 def get_maxlen(objs: List[Any]) -> int:
     """
     Get the maximum len of a list of objects.
