@@ -11,10 +11,10 @@ from numpy import ndarray
 from scipy.linalg import block_diag
 from scipy.stats import norm
 from scipy.optimize import LinearConstraint, minimize
-from spmat import BDLMat
+from spmat import BDLMat, DLMat
 
 from limetr.data import Data
-from limetr.utils import get_varmat, split_by_sizes
+from limetr.utils import split_by_sizes
 from limetr.variable import FeVariable, ReVariable
 
 
@@ -189,11 +189,9 @@ class LimeTr:
         BDLMat
             Weighted variance covariance matrix of the likelihood.
         """
-        return get_varmat(gamma,
-                          split_by_sizes(self.get_obsvar(),
-                                         self.data.group_sizes),
-                          split_by_sizes(self.get_remat(),
-                                         self.data.group_sizes))
+        return BDLMat(self.get_obsvar(),
+                      self.get_remat()*np.sqrt(gamma),
+                      self.data.group_sizes)
 
     def objective(self, var: ndarray) -> float:
         """
@@ -263,15 +261,19 @@ class LimeTr:
             Hessian at given variable.
         """
         beta, gamma = self.get_vars(var)
+        sqrt_gamma = np.sqrt(gamma)
         d = self.get_varmat(gamma)
         femat = self.get_femat(beta)
+        obsvar = split_by_sizes(self.get_obsvar(), self.data.group_sizes)
         remat = split_by_sizes(self.get_remat(), self.data.group_sizes)
+        dlmats = [DLMat(obsvar[i], remat[i]*sqrt_gamma)
+                  for i in range(self.data.num_groups)]
 
         beta_fisher = femat.T.dot(d.invdot(femat))
         beta_fisher += self.fevar.prior_hessian(beta)
 
         gamma_fisher = np.zeros((self.revar.size, self.revar.size))
-        for i, dlmat in enumerate(d.dlmats):
+        for i, dlmat in enumerate(dlmats):
             gamma_fisher += 0.5*(remat[i].T.dot(dlmat.invdot(remat[i])))**2
         gamma_fisher += self.revar.prior_hessian(gamma)
 
