@@ -592,6 +592,36 @@ class LimeTr:
 
         return self.u
 
+    def get_re_vcov(self):
+        if self.soln is None:
+            print('Please fit the model first.')
+            return None
+
+        if self.std_flag == 0:
+            S = self.S
+        elif self.std_flag == 1:
+            S = np.sqrt(np.repeat(self.delta[0], self.N))
+        elif self.std_flag == 2:
+            S = np.sqrt(np.repeat(self.delta, self.n))
+
+        if self.use_trimming:
+            R = (self.Y - self.F(self.beta))*np.sqrt(self.w)
+            Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
+        else:
+            R = self.Y - self.F(self.beta)
+            Z = self.Z
+
+        r = np.split(R, np.cumsum(self.n)[:-1])
+        v = np.split(S**2, np.cumsum(self.n)[:-1])
+        z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
+
+        vcov = []
+        for i in range(self.m):
+            hessian = (z[i].T/v[i]).dot(z[i]) + np.diag(1.0/self.gamma)
+            vcov.append(np.linalg.pinv(hessian))
+        
+        return vcov
+
     def estimate_re(self,
                     beta: np.ndarray = None,
                     gamma: np.ndarray = None,
