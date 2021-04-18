@@ -104,10 +104,10 @@ class LimeTr:
             self.uprior = uprior
         else:
             self.uprior = np.array([
-                [-np.inf]*self.k_beta + [0.0]*self.k_gamma +\
-                    [1e-7]*self.k_delta,
+                [-np.inf]*self.k_beta + [0.0]*self.k_gamma +
+                [1e-7]*self.k_delta,
                 [np.inf]*self.k
-                ])
+            ])
             self.use_uprior = True
 
         self.lb = self.uprior[0]
@@ -471,7 +471,7 @@ class LimeTr:
             ub=self.uprior[1],
             cl=self.cl,
             cu=self.cu
-            )
+        )
 
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)
@@ -531,9 +531,9 @@ class LimeTr:
             if normalize_trimming_grad:
                 w_grad /= np.linalg.norm(w_grad)
             w_new = utils.projCappedSimplex(
-                        self.w - outer_step_size*w_grad,
-                        self.num_inliers,
-                        active_id=self.active_trimming_id)
+                self.w - outer_step_size*w_grad,
+                self.num_inliers,
+                active_id=self.active_trimming_id)
 
             err = np.linalg.norm(w_new - self.w)/outer_step_size
             np.copyto(self.w, w_new)
@@ -619,7 +619,7 @@ class LimeTr:
         for i in range(self.m):
             hessian = (z[i].T/v[i]).dot(z[i]) + np.diag(1.0/self.gamma)
             vcov.append(np.linalg.pinv(hessian))
-        
+
         return vcov
 
     def estimate_re(self,
@@ -691,7 +691,6 @@ class LimeTr:
                 self.hm = np.zeros(self.num_regularizer)
                 self.hm[valid_id] = self.h[0][valid_id] +\
                     np.random.randn(valid_num)*self.h[1][valid_id]
-
 
     @classmethod
     def testProblem(cls,
@@ -851,3 +850,57 @@ class LimeTr:
                   end='\r')
 
         return beta_samples, gamma_samples
+
+
+def get_obs_se(model: LimeTr):
+    if model.std_flag == 0:
+        S = model.S
+    elif model.std_flag == 1:
+        S = np.sqrt(np.repeat(model.delta[0], model.N))
+    elif model.std_flag == 2:
+        S = np.sqrt(np.repeat(model.delta, model.n))
+    if model.use_trimming:
+        S = S**model.w
+    return S
+
+
+def get_fe_pred(model: LimeTr):
+    return model.F(model.beta)
+
+
+def get_re_pred(model: LimeTr):
+    re = model.estimateRE()
+    return np.sum(model.Z*np.repeat(re, model.n, axis=0), axis=1)
+
+
+def get_marginal_R2(model: LimeTr):
+    residual = (model.Y - get_fe_pred(model))/model.S
+    obs = model.Y/model.S
+    if model.use_trimming:
+        residual = np.sqrt(model.w)*residual
+        obs = np.sqrt(model.w)*obs
+    return 1 - np.var(residual)/np.var(obs)
+
+
+def get_conditional_R2(model: LimeTr):
+    residual = (model.Y - get_fe_pred(model) - get_re_pred(model))/model.S
+    obs = model.Y/model.S
+    if model.use_trimming:
+        residual = np.sqrt(model.w)*residual
+        obs = np.sqrt(model.w)*obs
+    return 1 - np.var(residual)/np.var(obs)
+
+
+def get_rmse(model: LimeTr):
+    residual = model.Y - get_fe_pred(model)
+    Z = model.Z
+    V = model.S**2
+    if model.use_trimming:
+        Z = np.sqrt(model.w)[:, None]*Z
+        V = V**model.w
+    D = utils.VarMat(V, Z, modelgamma, model.n)
+    if model.use_trimming:
+        rmse = np.sqrt(residual.dot(D.invDot(residual))/np.sum(model.w))
+    else:
+        rmse = np.sqrt(residual.dot(D.invDot(residual))/residual.size)
+    return rmse
