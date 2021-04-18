@@ -874,12 +874,11 @@ def get_re_pred(model: LimeTr):
 
 
 def get_marginal_R2(model: LimeTr):
-    residual = (model.Y - get_fe_pred(model))/model.S
+    rmse = get_rmse(model)
     obs = model.Y/model.S
     if model.use_trimming:
-        residual = np.sqrt(model.w)*residual
         obs = np.sqrt(model.w)*obs
-    return 1 - np.var(residual)/np.var(obs)
+    return 1 - rmse**2/np.var(obs)
 
 
 def get_conditional_R2(model: LimeTr):
@@ -898,7 +897,7 @@ def get_rmse(model: LimeTr):
     if model.use_trimming:
         Z = np.sqrt(model.w)[:, None]*Z
         V = V**model.w
-    D = utils.VarMat(V, Z, modelgamma, model.n)
+    D = utils.VarMat(V, Z, model.gamma, model.n)
     if model.use_trimming:
         rmse = np.sqrt(residual.dot(D.invDot(residual))/np.sum(model.w))
     else:
