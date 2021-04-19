@@ -852,16 +852,21 @@ class LimeTr:
         return beta_samples, gamma_samples
 
 
-def get_obs_se(model: LimeTr):
-    if model.std_flag == 0:
-        S = model.S
-    elif model.std_flag == 1:
-        S = np.sqrt(np.repeat(model.delta[0], model.N))
-    elif model.std_flag == 2:
-        S = np.sqrt(np.repeat(model.delta, model.n))
-    if model.use_trimming:
-        S = S**model.w
-    return S
+def get_baseline_model(model: LimeTr):
+    n = np.copy(model.n)
+    k_beta = 1
+    k_gamma = 1
+    Y = model.copy()
+    intercept = np.ones((Y.size, 1))
+    def F(beta): return intercept.dot(beta)
+    def JF(beta): return intercept
+    Z = intercept
+    S = model.S
+    w = model.w
+
+    baseline_model = LimeTr(n, k_beta, k_gamma, Y, F, JF, Z, S=S)
+    baseline_model.optimize()
+    return baseline_model
 
 
 def get_fe_pred(model: LimeTr):
@@ -873,33 +878,49 @@ def get_re_pred(model: LimeTr):
     return np.sum(model.Z*np.repeat(re, model.n, axis=0), axis=1)
 
 
-def get_marginal_R2(model: LimeTr):
-    rmse = get_rmse(model)
-    obs = model.Y/model.S
-    if model.use_trimming:
-        obs = np.sqrt(model.w)*obs
-    return 1 - rmse**2/np.var(obs)
+def get_varmat(model: LimeTr):
+    S = model.S**model.w
+    Z = model.Z*np.sqrt(model.w)[:, None]
+    n = model.n
+    gamma = model.gamma
+    return utils.VarMat(S**2, Z, gamma, n)
 
 
-def get_conditional_R2(model: LimeTr):
-    residual = (model.Y - get_fe_pred(model) - get_re_pred(model))/model.S
-    obs = model.Y/model.S
-    if model.use_trimming:
-        residual = np.sqrt(model.w)*residual
-        obs = np.sqrt(model.w)*obs
-    return 1 - np.var(residual)/np.var(obs)
+def get_marginal_rvar(model: LimeTr):
+    residual = (model.Y - get_fe_pred(model))*np.sqrt(model.w)
+    varmat = get_varmat(model)
+    return residual.dot(varmat.invDot(residual))/model.w.sum()
+
+
+def get_conditional_rvar(model: LimeTr):
+    residual = (model.Y - get_fe_pred(model) - get_re_pred(model))*np.sqrt(model.w)
+    varvec = (model.S**model.w)**2
+    return (residual/varvec).dot(residual)/model.w.sum()
+
+
+def get_marginal_R2(model: LimeTr,
+                    baseline_model: LimeTr = None) -> float:
+    if baseline_model is None:
+        baseline_model = get_baseline_model(model)
+
+    return 1 - get_marginal_rvar(model)/get_marginal_rvar(baseline_model)
+
+
+def get_conditional_R2(model: LimeTr,
+                       baseline_model: LimeTr = None):
+    if baseline_model is None:
+        baseline_model = get_baseline_model(model)
+
+    return 1 - get_conditional_rvar(model)/get_conditional_rvar(baseline_model)
+
+
+def get_R2(model: LimeTr):
+    baseline_model = get_baseline_model(model)
+    return {
+        "conditional_R2": get_conditional_R2(model, baseline_model),
+        "marginal_R2": get_marginal_R2(model, baseline_model)
+    }
 
 
 def get_rmse(model: LimeTr):
-    residual = model.Y - get_fe_pred(model)
-    Z = model.Z
-    V = model.S**2
-    if model.use_trimming:
-        Z = np.sqrt(model.w)[:, None]*Z
-        V = V**model.w
-    D = utils.VarMat(V, Z, model.gamma, model.n)
-    if model.use_trimming:
-        rmse = np.sqrt(residual.dot(D.invDot(residual))/np.sum(model.w))
-    else:
-        rmse = np.sqrt(residual.dot(D.invDot(residual))/residual.size)
-    return rmse
+    return np.sqrt(get_marginal_rvar(model))
