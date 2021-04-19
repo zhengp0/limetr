@@ -615,13 +615,18 @@ class LimeTr:
         return np.vstack(u)
 
     def get_gamma_fisher(self, gamma: np.ndarray) -> np.ndarray:
-        z = np.split(self.Z, np.cumsum(self.n)[:-1], axis=0)
-        v = np.split(self.S**2, np.cumsum(self.n)[:-1])
+        z = np.split(self.Z*self.w[:, None], np.cumsum(self.n)[:-1], axis=0)
+        v = np.split(self.S**2*self.w, np.cumsum(self.n)[:-1])
+        w = np.split(self.w, np.cumsum(self.n)[:-1])
         H = np.zeros((self.k_gamma, self.k_gamma))
         for i in range(self.m):
-            q = np.diag(v[i]) + (z[i]*gamma).dot(z[i].T)
-            q = z[i].T.dot(np.linalg.inv(q).dot(z[i]))
-            H += 0.5*(q**2)
+            trim_index = np.where(w[i] == 0)[0]
+            sub_v = np.delete(v[i], trim_index)
+            sub_z = np.delete(z[i], trim_index, axis=0)
+            if sub_v.size != 0:
+                mat = np.diag(sub_v) + (sub_z*gamma).dot(sub_z.T)
+                mat = sub_z.T.dot(np.linalg.inv(mat).dot(sub_z))
+                H += 0.5*(mat**2)
         return H
 
     def simulateData(self, beta_t, gamma_t, sim_prior=True, sim_re=True):
