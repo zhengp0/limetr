@@ -104,10 +104,10 @@ class LimeTr:
             self.uprior = uprior
         else:
             self.uprior = np.array([
-                [-np.inf]*self.k_beta + [0.0]*self.k_gamma +\
-                    [1e-7]*self.k_delta,
+                [-np.inf]*self.k_beta + [0.0]*self.k_gamma +
+                [1e-7]*self.k_delta,
                 [np.inf]*self.k
-                ])
+            ])
             self.use_uprior = True
 
         self.lb = self.uprior[0]
@@ -471,7 +471,7 @@ class LimeTr:
             ub=self.uprior[1],
             cl=self.cl,
             cu=self.cu
-            )
+        )
 
         opt_problem.addOption('print_level', print_level)
         opt_problem.addOption('max_iter', max_iter)
@@ -531,9 +531,9 @@ class LimeTr:
             if normalize_trimming_grad:
                 w_grad /= np.linalg.norm(w_grad)
             w_new = utils.projCappedSimplex(
-                        self.w - outer_step_size*w_grad,
-                        self.num_inliers,
-                        active_id=self.active_trimming_id)
+                self.w - outer_step_size*w_grad,
+                self.num_inliers,
+                active_id=self.active_trimming_id)
 
             err = np.linalg.norm(w_new - self.w)/outer_step_size
             np.copyto(self.w, w_new)
@@ -619,7 +619,7 @@ class LimeTr:
         for i in range(self.m):
             hessian = (z[i].T/v[i]).dot(z[i]) + np.diag(1.0/self.gamma)
             vcov.append(np.linalg.pinv(hessian))
-        
+
         return vcov
 
     def estimate_re(self,
@@ -691,7 +691,6 @@ class LimeTr:
                 self.hm = np.zeros(self.num_regularizer)
                 self.hm[valid_id] = self.h[0][valid_id] +\
                     np.random.randn(valid_num)*self.h[1][valid_id]
-
 
     @classmethod
     def testProblem(cls,
@@ -851,3 +850,77 @@ class LimeTr:
                   end='\r')
 
         return beta_samples, gamma_samples
+
+
+def get_baseline_model(model: LimeTr):
+    n = np.copy(model.n)
+    k_beta = 1
+    k_gamma = 1
+    Y = model.Y.copy()
+    intercept = np.ones((Y.size, 1))
+    def F(beta): return intercept.dot(beta)
+    def JF(beta): return intercept
+    Z = intercept
+    S = model.S.copy()
+    w = model.w.copy()
+
+    baseline_model = LimeTr(n, k_beta, k_gamma, Y, F, JF, Z, S=S)
+    baseline_model.optimize()
+    return baseline_model
+
+
+def get_fe_pred(model: LimeTr):
+    return model.F(model.beta)
+
+
+def get_re_pred(model: LimeTr):
+    re = model.estimateRE()
+    return np.sum(model.Z*np.repeat(re, model.n, axis=0), axis=1)
+
+
+def get_varmat(model: LimeTr):
+    S = model.S**model.w
+    Z = model.Z*np.sqrt(model.w)[:, None]
+    n = model.n
+    gamma = model.gamma
+    return utils.VarMat(S**2, Z, gamma, n)
+
+
+def get_marginal_rvar(model: LimeTr):
+    residual = (model.Y - get_fe_pred(model))*np.sqrt(model.w)
+    varmat = get_varmat(model)
+    return residual.dot(varmat.invDot(residual))/model.w.sum()
+
+
+def get_conditional_rvar(model: LimeTr):
+    residual = (model.Y - get_fe_pred(model) - get_re_pred(model))*np.sqrt(model.w)
+    varvec = (model.S**model.w)**2
+    return (residual/varvec).dot(residual)/model.w.sum()
+
+
+def get_marginal_R2(model: LimeTr,
+                    baseline_model: LimeTr = None) -> float:
+    if baseline_model is None:
+        baseline_model = get_baseline_model(model)
+
+    return 1 - get_marginal_rvar(model)/get_marginal_rvar(baseline_model)
+
+
+def get_conditional_R2(model: LimeTr,
+                       baseline_model: LimeTr = None):
+    if baseline_model is None:
+        baseline_model = get_baseline_model(model)
+
+    return 1 - get_conditional_rvar(model)/get_conditional_rvar(baseline_model)
+
+
+def get_R2(model: LimeTr):
+    baseline_model = get_baseline_model(model)
+    return {
+        "conditional_R2": get_conditional_R2(model, baseline_model),
+        "marginal_R2": get_marginal_R2(model, baseline_model)
+    }
+
+
+def get_rmse(model: LimeTr):
+    return np.sqrt(get_marginal_rvar(model))
