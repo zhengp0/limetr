@@ -856,13 +856,13 @@ def get_baseline_model(model: LimeTr):
     n = np.copy(model.n)
     k_beta = 1
     k_gamma = 1
-    Y = model.copy()
+    Y = model.Y.copy()
     intercept = np.ones((Y.size, 1))
     def F(beta): return intercept.dot(beta)
     def JF(beta): return intercept
     Z = intercept
-    S = model.S
-    w = model.w
+    S = model.S.copy()
+    w = model.w.copy()
 
     baseline_model = LimeTr(n, k_beta, k_gamma, Y, F, JF, Z, S=S)
     baseline_model.optimize()
