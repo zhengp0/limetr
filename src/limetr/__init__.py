@@ -1,2 +1,2 @@
-from .core import LimeTr
+from .models import LimeTr
 from .data import Data

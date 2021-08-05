@@ -7,7 +7,7 @@ import numpy as np
 from limetr.data import Data
 from limetr.linalg import LinearMapping
 from limetr.variable import FeVariable, ReVariable
-from limetr.core import LimeTr
+from limetr.models.main import LimeTr
 from limetr.utils import split_by_sizes
 
 
