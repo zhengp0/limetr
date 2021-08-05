@@ -297,7 +297,7 @@ class FeModel:
                 for weight in np.linspace(1.0, 0.0, trim_steps)[1:]:
                     self.data.weight.fill(1.0)
                     self.data.weight[index] = weight
-                    self._fit_model(var=self.result.x, options=options)
+                    self._fit_model(beta=self.result.x, options=options)
                     index = self.detect_outliers(self.result.x)
 
     @property
@@ -313,7 +313,7 @@ class FeModel:
         }
 
     def __repr__(self) -> str:
-        return (f"{type(self).__namn__}(\n"
+        return (f"{type(self).__name__}(\n"
                 f"    data={self.data},\n"
                 f"    fevar={self.fevar},\n"
                 f"    inlier_pct={self.inlier_pct}\n"
