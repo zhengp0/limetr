@@ -60,9 +60,10 @@ def test_obs_se_validate(obs, obs_se_bad, group_sizes, weight):
         Data(obs, obs_se_bad, group_sizes, weight)
 
 
-def test_obs_varmat(obs, obs_varmat, group_sizes, weight):
+@pytest.mark.parametrize("obs_varmat_good", [pytest.lazy_fixture("obs_varmat"), None])
+def test_obs_varmat(obs, obs_varmat_good, group_sizes, weight):
     d = Data(obs,
-             obs_varmat=obs_varmat,
+             obs_varmat=obs_varmat_good,
              group_sizes=group_sizes,
              weight=weight)
     assert d.obs_se.size == d.num_obs

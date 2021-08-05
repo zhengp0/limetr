@@ -50,6 +50,9 @@ class Data:
             Observations. Assumed to be sorted by the group id.
         obs_se : Union[Number, Iterable], optional
             Standard deviations of observation. Default is one.
+        obs_varmat : Optional[np.ndarray], optional
+            (Co)variance matrix of observation. When set to be ``None``, returns
+            diagonal matrix with ``obs_se**2`` as the diagonal.
         group_sizes : Iterable[int], optional
             Number of observations for each group. Default is ``None``.
         weight : Union[Number, Iterable], optional
@@ -84,6 +87,12 @@ class Data:
         if any(vec <= 0.0):
             raise ValueError("`obs_se` must be all positive.")
         self._obs_se = vec
+
+    @obs_varmat.getter
+    def obs_varmat(self) -> np.ndarray:
+        if self._obs_varmat is None:
+            return np.diag(self.obs_se**2)
+        return self._obs_varmat
 
     @obs_varmat.setter
     def obs_varmat(self, mat: Optional[np.ndarray]):
