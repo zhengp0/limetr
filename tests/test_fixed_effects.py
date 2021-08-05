@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from limetr.data import Data
 from limetr.linalg import LinearMapping
-from limetr.models import FEModel
-from limetr.variable import FeVariable, ReVariable
+from limetr.models import FeModel
+from limetr.variable import FeVariable
 
 
 def ad_jacobian(fun, x, shape, eps=1e-10):
@@ -45,20 +45,20 @@ def inlier_pct():
 
 @pytest.fixture
 def model(data, fevar, inlier_pct):
-    return FEModel(data, fevar, inlier_pct=inlier_pct)
+    return FeModel(data, fevar, inlier_pct=inlier_pct)
 
 
 @pytest.mark.parametrize("my_fevar",
                          [FeVariable(LinearMapping(np.ones((4, 3))))])
 def test_validate_fevar(data, my_fevar, inlier_pct):
     with pytest.raises(ValueError):
-        FEModel(data, my_fevar, inlier_pct=inlier_pct)
+        FeModel(data, my_fevar, inlier_pct=inlier_pct)
 
 
 @pytest.mark.parametrize("my_inlier_pct", [-0.1, 1.1])
 def test_validate_inlier_pct(data, fevar, my_inlier_pct):
     with pytest.raises(ValueError):
-        FEModel(data, fevar, inlier_pct=my_inlier_pct)
+        FeModel(data, fevar, inlier_pct=my_inlier_pct)
 
 
 @pytest.mark.parametrize("beta", [np.ones(2)])
@@ -85,6 +85,14 @@ def test_objective(model, beta):
                         np.diag(model.get_obs_varmat()))
 
     assert np.isclose(my_obj, tr_obj)
+
+
+@pytest.mark.parametrize("beta", [np.ones(2)])
+def test_gradient(model, beta):
+    my_grad = model.gradient(beta)
+    tr_grad = ad_jacobian(model.objective, beta, (beta.size,))
+
+    assert np.allclose(my_grad, tr_grad)
 
 
 @pytest.mark.parametrize("beta", [np.zeros(2)])

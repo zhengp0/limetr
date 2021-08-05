@@ -14,7 +14,7 @@ from scipy.optimize import LinearConstraint, minimize
 from scipy.stats import norm
 
 
-class FEModel:
+class FeModel:
     """ Simple linear regression model class that allows observation
     (co)variance matrix.
 
@@ -290,7 +290,7 @@ class FEModel:
         if trim_steps < 2:
             raise ValueError("At least two trimming steps.")
 
-        self._fit_model(var=beta, options=options)
+        self._fit_model(beta=beta, options=options)
         if self.inlier_pct < 1.0:
             index = self.detect_outliers(self.result.x)
             if index.sum() > 0:
