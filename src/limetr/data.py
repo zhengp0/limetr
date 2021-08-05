@@ -6,7 +6,7 @@
 """
 import operator
 from numbers import Number
-from typing import Iterable, Union
+from typing import Iterable, Optional, Union
 
 import numpy as np
 
@@ -31,9 +31,16 @@ class Data:
         Weights for each observation. Default is one for each observation.
     """
 
+    obs = property(operator.attrgetter("_obs"))
+    obs_se = property(operator.attrgetter("_obs_se"))
+    obs_varmat = property(operator.attrgetter("_obs_varmat"))
+    weight = property(operator.attrgetter("_weight"))
+    group_sizes = property(operator.attrgetter("_group_sizes"))
+
     def __init__(self,
                  obs: Iterable,
                  obs_se: Union[Number, Iterable] = 1.0,
+                 obs_varmat: Optional[np.ndarray] = None,
                  group_sizes: Iterable[int] = None,
                  weight: Union[Number, Iterable] = 1.0):
         """
@@ -50,6 +57,7 @@ class Data:
         """
         self.obs = obs
         self.obs_se = obs_se
+        self.obs_varmat = obs_varmat
         self.weight = weight
         self.group_sizes = group_sizes
 
@@ -63,16 +71,12 @@ class Data:
         """Number of groups"""
         return self.group_sizes.size
 
-    obs = property(operator.attrgetter("_obs"))
-
     @obs.setter
     def obs(self, vec: Iterable):
         vec = np.asarray(vec)
         if any(np.isnan(vec)):
             raise ValueError("`obs` must not containing nan(s).")
         self._obs = vec
-
-    obs_se = property(operator.attrgetter("_obs_se"))
 
     @obs_se.setter
     def obs_se(self, vec: Union[Number, Iterable]):
@@ -81,7 +85,18 @@ class Data:
             raise ValueError("`obs_se` must be all positive.")
         self._obs_se = vec
 
-    weight = property(operator.attrgetter("_weight"))
+    @obs_varmat.setter
+    def obs_varmat(self, mat: Optional[np.ndarray]):
+        if mat is not None:
+            if not isinstance(mat, np.ndarray):
+                raise TypeError("obs_varmat must be None or a ndarray")
+            if mat.ndim != 2 or mat.shape != (self.num_obs, self.num_obs):
+                raise ValueError(f"obs_varmat must be a square matrix with "
+                                 f"number of rows/cols to be {self.num_obs}.")
+            if not (np.linalg.eigvals(mat) > 0.0).all():
+                raise ValueError("obs_varmat must be a positive definite "
+                                 "matrix.")
+        self._obs_varmat = mat
 
     @weight.setter
     def weight(self, vec: Union[Number, Iterable]):
@@ -89,8 +104,6 @@ class Data:
         if any(vec < 0) or any(vec > 1):
             raise ValueError("`weight` must be all between 0 and 1.")
         self._weight = vec
-
-    group_sizes = property(operator.attrgetter("_group_sizes"))
 
     @group_sizes.setter
     def group_sizes(self, vec: Union[None, Iterable]):
