@@ -78,3 +78,11 @@ def test_broadcast(objs):
 def test_broadcast_size_zero(size, objs):
     my_result = utils.broadcast(objs, size)
     assert my_result.shape == (len(objs), 0)
+
+
+@pytest.mark.parametrize("array", [np.ones(6), np.ones((6, 1))])
+@pytest.mark.parametrize("group_sizes", [[2, 2, 2]])
+def test_reduce_by_sizes(array, group_sizes):
+    result = utils.reduce_by_sizes(array, group_sizes)
+    assert result.ndim == array.ndim
+    assert np.allclose(result.ravel(), np.array([2.0, 2.0, 2.0]))

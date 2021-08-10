@@ -6,7 +6,7 @@
 """
 from collections.abc import Iterable
 from numbers import Number
-from typing import Any, List, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 from spmat.dlmat import BDLMat, DLMat
@@ -233,3 +233,42 @@ def broadcast(objs: List[Any],
                                  "size.")
         vecs = np.vstack(objs)
     return vecs
+
+
+def reduce_by_sizes(array: np.ndarray,
+                    group_sizes: np.ndarray,
+                    ufunc: np.ufunc = np.add,
+                    axis: int = 0,
+                    **kwargs: Dict) -> np.ndarray:
+    """Reduce array by group, this is a wrapper for np.reduceat.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        Numpy array to be reduced.
+    group_sizes : np.ndarray
+        The group sizes of the array. Requires the sum of group sizes equal to
+        the size of the array.
+    ufunc : np.ufunc, optional
+        Numpy ufunc, default to ``np.add``.
+    axis : int, optional
+        Axis to be reduced, default to be 0.
+    kwargs : Dict
+        Additional keyword arguments.
+
+    Returns
+    -------
+    Reduced array with size equal to length of ``group_sizes``.
+    """
+    array = np.asarray(array)
+    group_sizes = np.asanyarray(group_sizes).astype(int)
+    if not isinstance(ufunc, np.ufunc):
+        raise TypeError("ufunc must be a instance of numpy.ufunc.")
+    if any(group_sizes <= 0) or sum(group_sizes) != array.shape[axis]:
+        raise ValueError("group sizes must be an array of positive number with "
+                         "sum equals to length of the array.")
+
+    # convert the group_sizes to indicies
+    indices = np.cumsum(np.hstack([0, group_sizes]))[:-1]
+
+    return ufunc.reduceat(array, indices, axis=axis, **kwargs)
