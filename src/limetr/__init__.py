@@ -1,5 +1,4 @@
 # nonlinear mixed effects model
-from asyncio import constants
 from copy import deepcopy
 
 import numpy as np
@@ -10,8 +9,7 @@ from limetr import utils
 
 
 class LimeTr:
-    def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z,
-                 S=None, share_obs_std=False,
+    def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z, S,
                  C=None, JC=None, c=None,
                  H=None, JH=None, h=None,
                  uprior=None, gprior=None, lprior=None,
@@ -45,23 +43,12 @@ class LimeTr:
         self.N = sum(n)
         self.k_beta = k_beta
         self.k_gamma = k_gamma
-        # if include measurement error also as variable
-        if S is not None:
-            self.std_flag = 0
-            self.k_delta = 0
-        elif share_obs_std:
-            self.std_flag = 1
-            self.k_delta = 1
-        else:
-            self.std_flag = 2
-            self.k_delta = self.m
 
-        self.k = self.k_beta + self.k_gamma + self.k_delta
+        self.k = self.k_beta + self.k_gamma
         self.k_total = self.k
 
         self.idx_beta = slice(0, self.k_beta)
         self.idx_gamma = slice(self.k_beta, self.k_beta + self.k_gamma)
-        self.idx_delta = slice(self.k_beta + self.k_gamma, self.k)
         self.idx_split = np.cumsum(np.insert(n, 0, 0))[:-1]
 
         # pass in the data
@@ -70,8 +57,7 @@ class LimeTr:
         self.JF = JF
         self.Z = Z
         self.S = S
-        if self.std_flag == 0:
-            self.V = S**2
+        self.V = S**2
 
         # pass in the priors
         self.use_constraints = (C is not None)
@@ -108,8 +94,7 @@ class LimeTr:
             self.uprior = uprior
         else:
             self.uprior = np.array([
-                [-np.inf]*self.k_beta + [0.0]*self.k_gamma +
-                [1e-7]*self.k_delta,
+                [-np.inf]*self.k_beta + [0.0]*self.k_gamma,
                 [np.inf]*self.k
             ])
             self.use_uprior = True
@@ -221,7 +206,6 @@ class LimeTr:
         self.info = None
         self.beta = np.zeros(self.k_beta)
         self.gamma = np.repeat(0.01, self.k_gamma)
-        self.delta = np.repeat(0.01, self.k_delta)
 
         # check the input
         self.check()
@@ -263,8 +247,6 @@ class LimeTr:
         # unpack variable
         beta = x[self.idx_beta]
         gamma = x[self.idx_gamma]
-        delta = x[self.idx_delta]
-
         gamma[gamma <= 0.0] = 0.0
 
         # trimming option
@@ -274,26 +256,14 @@ class LimeTr:
             F_beta = self.F(beta)*sqrt_w
             Y = self.Y*sqrt_w
             Z = self.Z*sqrt_W
-            if self.std_flag == 0:
-                V = self.V**self.w
-            elif self.std_flag == 1:
-                V = np.repeat(delta[0], self.N)**self.w
-            elif self.std_flag == 2:
-                V = np.repeat(delta, self.n)**self.w
         else:
             F_beta = self.F(beta)
             Y = self.Y
             Z = self.Z
-            if self.std_flag == 0:
-                V = self.V
-            elif self.std_flag == 1:
-                V = np.repeat(delta[0], self.N)
-            elif self.std_flag == 2:
-                V = np.repeat(delta, self.n)
 
         # residual and variance
         R = Y - F_beta
-        D = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        D = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         val = 0.5*self.N*np.log(2.0*np.pi)
 
@@ -336,8 +306,6 @@ class LimeTr:
         # unpack variable
         beta = x[self.idx_beta]
         gamma = x[self.idx_gamma]
-        delta = x[self.idx_delta]
-
         gamma[gamma <= 0.0] = 0.0
 
         # trimming option
@@ -348,27 +316,15 @@ class LimeTr:
             JF_beta = self.JF(beta)*sqrt_W
             Y = self.Y*sqrt_w
             Z = self.Z*sqrt_W
-            if self.std_flag == 0:
-                V = self.V**self.w
-            elif self.std_flag == 1:
-                V = np.repeat(delta[0], self.N)**self.w
-            elif self.std_flag == 2:
-                V = np.repeat(delta, self.n)**self.w
         else:
             F_beta = self.F(beta)
             JF_beta = self.JF(beta)
             Y = self.Y
             Z = self.Z
-            if self.std_flag == 0:
-                V = self.V
-            elif self.std_flag == 1:
-                V = np.repeat(delta[0], self.N)
-            elif self.std_flag == 2:
-                V = np.repeat(delta, self.n)
 
         # residual and variance
         R = Y - F_beta
-        D = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        D = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         # gradient for beta
         DR = D.invdot(R)
@@ -381,23 +337,7 @@ class LimeTr:
                 np.add.reduceat(DZ.T*R, self.idx_split, axis=1)**2,
                 axis=1)
 
-        # gradient for delta
-        if self.std_flag == 0:
-            g_delta = np.array([])
-        elif self.std_flag == 1:
-            d = -DR**2 + D.invdiag()
-            if self.use_trimming:
-                v = np.repeat(delta[0], self.N)
-                d *= self.w*(v**(self.w - 1.0))
-            g_delta = 0.5*np.array([np.sum(d)])
-        elif self.std_flag == 2:
-            d = -DR**2 + D.invdiag()
-            if self.use_trimming:
-                v = np.repeat(delta, self.n)
-                d *= self.w*(v**(self.w - 1.0))
-            g_delta = 0.5*(np.add.reduceat(d, self.idx_split))
-
-        g = np.hstack((g_beta, g_gamma, g_delta))
+        g = np.hstack((g_beta, g_gamma))
 
         # add gradient from the regularizer
         if self.use_regularizer:
@@ -416,13 +356,7 @@ class LimeTr:
     def objectiveTrimming(self, w):
         t = (self.Z**2).dot(self.gamma)
         r = self.Y - self.F(self.beta)
-        if self.std_flag == 0:
-            v = self.V
-        elif self.std_flag == 1:
-            v = np.repeat(self.delta[0], self.N)
-        elif self.std_flag == 2:
-            v = np.repeat(self.delta, self.n)
-        d = v + t
+        d = self.V + t
 
         val = 0.5*np.sum(r**2*w/d)
         val += 0.5*self.N*np.log(2.0*np.pi) + 0.5*w.dot(np.log(d))
@@ -443,13 +377,7 @@ class LimeTr:
 
         t = (self.Z**2).dot(self.gamma)
         r = (self.Y - self.F(self.beta))**2
-        if self.std_flag == 0:
-            v = self.V
-        elif self.std_flag == 1:
-            v = np.repeat(self.delta[0], self.N)
-        elif self.std_flag == 2:
-            v = np.repeat(self.delta, self.n)
-        d = v + t
+        d = self.V + t
 
         g = 0.5*r/d
         g += 0.5*np.log(d)
@@ -458,7 +386,7 @@ class LimeTr:
 
     def optimize(self, x0=None, options=None):
         if x0 is None:
-            x0 = np.hstack((self.beta, self.gamma, self.delta))
+            x0 = np.hstack((self.beta, self.gamma))
             if self.use_lprior:
                 x0 = np.hstack((x0, np.zeros(self.k)))
 
@@ -482,7 +410,6 @@ class LimeTr:
         self.soln = self.info.x
         self.beta = self.soln[self.idx_beta]
         self.gamma = self.soln[self.idx_gamma]
-        self.delta = self.soln[self.idx_delta]
 
     def fitModel(self, x0=None,
                  inner_options=None,
@@ -536,13 +463,6 @@ class LimeTr:
             print('Please fit the model first.')
             return None
 
-        if self.std_flag == 0:
-            S = self.S
-        elif self.std_flag == 1:
-            S = np.sqrt(np.repeat(self.delta[0], self.N))
-        elif self.std_flag == 2:
-            S = np.sqrt(np.repeat(self.delta, self.n))
-
         if self.use_trimming:
             R = (self.Y - self.F(self.beta))*np.sqrt(self.w)
             Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
@@ -550,11 +470,11 @@ class LimeTr:
             R = self.Y - self.F(self.beta)
             Z = self.Z
 
-        iV = 1.0/S**2
+        iV = 1.0/self.V
         iVZ = Z*iV.reshape(iV.size, 1)
 
         r = np.split(R, np.cumsum(self.n)[:-1])
-        v = np.split(S**2, np.cumsum(self.n)[:-1])
+        v = np.split(self.V, np.cumsum(self.n)[:-1])
         z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
         ivz = np.split(iVZ, np.cumsum(self.n)[:-1], axis=0)
 
@@ -575,13 +495,6 @@ class LimeTr:
             print('Please fit the model first.')
             return None
 
-        if self.std_flag == 0:
-            S = self.S
-        elif self.std_flag == 1:
-            S = np.sqrt(np.repeat(self.delta[0], self.N))
-        elif self.std_flag == 2:
-            S = np.sqrt(np.repeat(self.delta, self.n))
-
         if self.use_trimming:
             R = (self.Y - self.F(self.beta))*np.sqrt(self.w)
             Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
@@ -590,7 +503,7 @@ class LimeTr:
             Z = self.Z
 
         r = np.split(R, np.cumsum(self.n)[:-1])
-        v = np.split(S**2, np.cumsum(self.n)[:-1])
+        v = np.split(self.V, np.cumsum(self.n)[:-1])
         z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
 
         vcov = []
@@ -644,14 +557,7 @@ class LimeTr:
         U = np.repeat(u, self.n, axis=0)
         ZU = np.sum(self.Z*U, axis=1)
 
-        if self.std_flag == 0:
-            S = self.S
-        elif self.std_flag == 1:
-            S = np.sqrt(np.repeat(self.delta[0], self.N))
-        elif self.std_flag == 2:
-            S = np.sqrt(np.repeat(self.delta, self.n))
-
-        E = np.random.randn(self.N)*S
+        E = np.random.randn(self.N)*self.S
 
         self.Y = self.F(beta_t) + ZU + E
 
@@ -684,13 +590,7 @@ class LimeTr:
         N = sum(n)
         k_beta = 3
         k_gamma = 2
-        if know_obs_std:
-            k_delta = 0
-        elif share_obs_std:
-            k_delta = 1
-        else:
-            k_delta = m
-        k = k_beta + k_gamma + k_delta
+        k = k_beta + k_gamma
 
         beta_t = np.random.randn(k_beta)
         gamma_t = np.random.rand(k_gamma)*0.09 + 0.01
