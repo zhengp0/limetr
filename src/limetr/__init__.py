@@ -1,7 +1,10 @@
 # nonlinear mixed effects model
-import numpy as np
-import ipopt
 from copy import deepcopy
+
+import ipopt
+import numpy as np
+from spmat.dlmat import BDLMat
+
 from limetr import utils
 
 
@@ -289,21 +292,21 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = utils.VarMat(V, Z, gamma, self.n)
+        D = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         val = 0.5*self.N*np.log(2.0*np.pi)
 
         if use_ad:
             # should only use when testing
             varmat = D
-            D = varmat.varMat()
-            inv_D = varmat.invVarMat()
+            D = varmat.mat
+            inv_D = varmat.invmat
 
             val += 0.5*np.log(np.linalg.det(D))
             val += 0.5*R.dot(inv_D.dot(R))
         else:
-            val += 0.5*D.logDet()
-            val += 0.5*R.dot(D.invDot(R))
+            val += 0.5*D.logdet()
+            val += 0.5*R.dot(D.invdot(R))
 
         # add gpriors
         if self.use_regularizer:
@@ -364,14 +367,14 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = utils.VarMat(V, Z, gamma, self.n)
+        D = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         # gradient for beta
-        DR = D.invDot(R)
+        DR = D.invdot(R)
         g_beta = -JF_beta.T.dot(DR)
 
         # gradient for gamma
-        DZ = D.invDot(Z)
+        DZ = D.invdot(Z)
         g_gamma = 0.5*np.sum(Z*DZ, axis=0) -\
             0.5*np.sum(
                 np.add.reduceat(DZ.T*R, self.idx_split, axis=1)**2,
@@ -381,13 +384,13 @@ class LimeTr:
         if self.std_flag == 0:
             g_delta = np.array([])
         elif self.std_flag == 1:
-            d = -DR**2 + D.invDiag()
+            d = -DR**2 + D.invdiag()
             if self.use_trimming:
                 v = np.repeat(delta[0], self.N)
                 d *= self.w*(v**(self.w - 1.0))
             g_delta = 0.5*np.array([np.sum(d)])
         elif self.std_flag == 2:
-            d = -DR**2 + D.invDiag()
+            d = -DR**2 + D.invdiag()
             if self.use_trimming:
                 v = np.repeat(delta, self.n)
                 d *= self.w*(v**(self.w - 1.0))
@@ -883,13 +886,13 @@ def get_varmat(model: LimeTr):
     Z = model.Z*np.sqrt(model.w)[:, None]
     n = model.n
     gamma = model.gamma
-    return utils.VarMat(S**2, Z, gamma, n)
+    return BDLMat(diags=S**2, lmats=Z*np.sqrt(gamma), dsizes=n)
 
 
 def get_marginal_rvar(model: LimeTr):
     residual = (model.Y - get_fe_pred(model))*np.sqrt(model.w)
     varmat = get_varmat(model)
-    return residual.dot(varmat.invDot(residual))/model.w.sum()
+    return residual.dot(varmat.invdot(residual))/model.w.sum()
 
 
 def get_conditional_rvar(model: LimeTr):
