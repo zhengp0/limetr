@@ -9,5 +9,5 @@ setup(name='limetr',
       license='MIT',
       packages=['limetr'],
       package_dir={'limetr': 'src/limetr'},
-      install_requires=['numpy', 'scipy', 'ipopt', 'spmat'],
+      install_requires=['numpy', 'scipy', 'spmat'],
       zip_safe=False)
