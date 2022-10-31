@@ -2,6 +2,7 @@
 from copy import deepcopy
 
 import numpy as np
+from scipy.linalg import block_diag
 from scipy.optimize import LinearConstraint, minimize
 from spmat.dlmat import BDLMat
 
@@ -146,10 +147,7 @@ class LimeTr:
                     return vec
 
                 def jacobian(x):
-                    v = x[:self.k]
-                    v_abs = x[self.k:]
                     Id = np.eye(self.k)
-
                     mat = np.block([[-Id, Id], [Id, Id]])
 
                     return mat
@@ -263,19 +261,22 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         val = 0.5*self.N*np.log(2.0*np.pi)
 
         if use_ad:
             # should only use when testing
-            varmat = D
-            D = varmat.mat
-            inv_D = varmat.invmat
+            split_idx = np.cumsum(self.n)[:-1]
+            v_study = np.split(self.V, split_idx)
+            z_study = np.split(Z, split_idx, axis=0)
+            D = block_diag(*[np.diag(v) + (z*gamma).dot(z.T)
+                             for v, z in zip(v_study, z_study)])
+            inv_D = np.linalg.inv(D)
 
             val += 0.5*np.log(np.linalg.det(D))
             val += 0.5*R.dot(inv_D.dot(R))
         else:
+            D = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
             val += 0.5*D.logdet()
             val += 0.5*R.dot(D.invdot(R))
 
@@ -582,9 +583,7 @@ class LimeTr:
                     use_constraints=False,
                     use_regularizer=False,
                     use_uprior=False,
-                    use_gprior=False,
-                    know_obs_std=True,
-                    share_obs_std=False):
+                    use_gprior=False):
         m = 10
         n = [5]*m
         N = sum(n)
@@ -655,15 +654,11 @@ class LimeTr:
         else:
             inlier_percentage = 1.0
 
-        if not know_obs_std:
-            S = None
-
         return cls(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
                    C=C, JC=JC, c=c,
                    H=H, JH=JH, h=h,
                    uprior=uprior, gprior=gprior,
-                   inlier_percentage=inlier_percentage,
-                   share_obs_std=share_obs_std)
+                   inlier_percentage=inlier_percentage)
 
     @classmethod
     def testProblemLasso(cls):
