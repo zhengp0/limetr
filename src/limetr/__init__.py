@@ -436,7 +436,7 @@ class LimeTr:
             w_grad = self.gradientTrimming(self.w)
             if normalize_trimming_grad:
                 w_grad /= np.linalg.norm(w_grad)
-            w_new = utils.projCappedSimplex(
+            w_new = utils.proj_capped_simplex(
                 self.w - outer_step_size*w_grad,
                 self.num_inliers,
                 active_id=self.active_trimming_id)

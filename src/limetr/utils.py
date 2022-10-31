@@ -3,7 +3,7 @@ import numpy as np
 from scipy.optimize import bisect
 
 
-def projCappedSimplex(w, w_sum, active_id=None):
+def proj_capped_simplex(w, w_sum, active_id=None):
     N = w.size
     if active_id is None:
         active_id = np.arange(N)
