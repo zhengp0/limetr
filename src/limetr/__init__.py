@@ -5,7 +5,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.linalg import block_diag
 from scipy.optimize import LinearConstraint, minimize
-from spmat.dlmat import BDLMat
+from spmat.dlmat import BDLMat, DLMat
 
 from limetr import utils
 
@@ -353,6 +353,34 @@ class LimeTr:
 
         return g
 
+    def hessian(self, x: NDArray) -> NDArray:
+        beta, gamma = self._get_vars(x)
+        _, JF_beta, _, Z = self._get_nll_components(beta)
+
+        sqrt_gamma = np.sqrt(gamma)
+        d = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+
+        split_idx = np.cumsum(self.n)[:-1]
+        v_study = np.split(self.V, split_idx)
+        z_study = np.split(Z, split_idx, axis=0)
+        dlmats = [DLMat(v, z*sqrt_gamma) for v, z in zip(v_study, z_study)]
+
+        beta_fisher = JF_beta.T.dot(d.invdot(JF_beta))
+        gamma_fisher = np.zeros((self.k_gamma, self.k_gamma))
+        for i, dlmat in enumerate(dlmats):
+            gamma_fisher += 0.5*(z_study[i].T.dot(dlmat.invdot(z_study[i])))**2
+
+        hessian = block_diag(beta_fisher, gamma_fisher)
+        if self.use_regularizer:
+            JH = self.JH(x)
+            hessian += (JH.T*self.hw).dot(JH)
+
+        if self.use_gprior:
+            idx = np.arange(self.k)
+            hessian[idx, idx] += self.gw
+
+        return hessian
+
     def objectiveTrimming(self, w):
         t = (self.Z**2).dot(self.gamma)
         r = self.Y - self.F(self.beta)
@@ -402,14 +430,14 @@ class LimeTr:
             x0,
             method="trust-constr",
             jac=self.gradient,
+            hess=self.hessian,
             constraints=constraints,
             bounds=self.uprior.T,
             options=options
         )
 
         self.soln = self.info.x
-        self.beta = self.soln[self.idx_beta]
-        self.gamma = self.soln[self.idx_gamma]
+        self.beta, self.gamma = self._get_vars(self.soln)
 
     def fitModel(self, x0=None,
                  inner_options=None,
@@ -495,14 +523,10 @@ class LimeTr:
             print('Please fit the model first.')
             return None
 
+        Z = self.Z
         if self.use_trimming:
-            R = (self.Y - self.F(self.beta))*np.sqrt(self.w)
             Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
-        else:
-            R = self.Y - self.F(self.beta)
-            Z = self.Z
 
-        r = np.split(R, np.cumsum(self.n)[:-1])
         v = np.split(self.V, np.cumsum(self.n)[:-1])
         z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
 
