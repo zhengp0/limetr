@@ -569,36 +569,11 @@ class LimeTr:
             H += 0.5*(q**2)
         return H
 
-    def simulateData(self, beta_t, gamma_t, sim_prior=True, sim_re=True):
-        # sample random effects and measurement error
-        if sim_re:
-            u = np.random.randn(self.m, self.k_gamma)*np.sqrt(gamma_t)
-        else:
-            if not hasattr(self, 'u'):
-                self.estimateRE()
-            u = self.u
-
-        U = np.repeat(u, self.n, axis=0)
-        ZU = np.sum(self.Z*U, axis=1)
-
-        E = np.random.randn(self.N)*self.S
-
-        self.Y = self.F(beta_t) + ZU + E
-
-        if sim_prior:
-            if self.use_gprior:
-                valid_id = ~np.isinf(self.gprior[1])
-                valid_num = np.sum(valid_id)
-                self.gm = np.zeros(self.k)
-                self.gm[valid_id] = self.gprior[0][valid_id] +\
-                    np.random.randn(valid_num)*self.gprior[1][valid_id]
-
-            if self.use_regularizer:
-                valid_id = ~np.isinf(self.h[1])
-                valid_num = np.sum(valid_id)
-                self.hm = np.zeros(self.num_regularizer)
-                self.hm[valid_id] = self.h[0][valid_id] +\
-                    np.random.randn(valid_num)*self.h[1][valid_id]
+    def sample_beta(self, size: int = 1) -> NDArray:
+        hessian = self.hessian(self.soln)
+        beta_hessian = hessian[:self.k_beta, :self.k_beta]
+        beta_vcov = np.linalg.inv(beta_hessian)
+        return np.random.multivariate_normal(self.beta, beta_vcov, size=size)
 
     @classmethod
     def testProblem(cls,
@@ -714,38 +689,6 @@ class LimeTr:
 
         return cls(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
                    uprior=uprior, lprior=lprior)
-
-    @staticmethod
-    def sampleSoln(lt, sample_size=1, print_level=0, max_iter=100,
-                   sim_prior=True, sim_re=True):
-        beta_samples = np.zeros((sample_size, lt.k_beta))
-        gamma_samples = np.zeros((sample_size, lt.k_gamma))
-
-        beta_t = lt.beta.copy()
-        gamma_t = lt.gamma.copy()
-
-        lt_copy = deepcopy(lt)
-        lt_copy.uprior[:, lt.k_beta:] = np.vstack((gamma_t, gamma_t))
-
-        for i in range(sample_size):
-            lt_copy.simulateData(beta_t, gamma_t,
-                                 sim_prior=sim_prior, sim_re=sim_re)
-            lt_copy.optimize(x0=np.hstack((beta_t, gamma_t)),
-                             print_level=print_level,
-                             max_iter=max_iter)
-
-            u_samples = lt_copy.estimateRE()
-
-            beta_samples[i] = lt_copy.beta.copy()
-            gamma_samples[i] = np.maximum(
-                lt.uprior[0, lt.k_beta:],
-                np.minimum(lt.uprior[1, lt.k_beta:], np.var(u_samples, axis=0))
-            )
-
-            print('sampling solution progress %0.2f' % ((i + 1)/sample_size),
-                  end='\r')
-
-        return beta_samples, gamma_samples
 
 
 def get_baseline_model(model: LimeTr):
