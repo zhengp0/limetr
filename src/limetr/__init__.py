@@ -2,6 +2,7 @@
 from copy import deepcopy
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.linalg import block_diag
 from scipy.optimize import LinearConstraint, minimize
 from spmat.dlmat import BDLMat
@@ -241,23 +242,34 @@ class LimeTr:
         if self.k > self.N:
             print('Warning: information insufficient!')
 
-    def objective(self, x, use_ad=False):
-        # unpack variable
-        beta = x[self.idx_beta]
-        gamma = x[self.idx_gamma]
-        gamma[gamma <= 0.0] = 0.0
+    def _get_vars(self, x: NDArray) -> tuple[NDArray, NDArray]:
+        beta, gamma = x[self.idx_beta], x[self.idx_gamma]
+        gamma = np.maximum(0.0, gamma)
+        return beta, gamma
 
+    def _get_nll_components(self, beta: NDArray) -> tuple[NDArray, ...]:
         # trimming option
         if self.use_trimming:
             sqrt_w = np.sqrt(self.w)
             sqrt_W = sqrt_w.reshape(self.N, 1)
             F_beta = self.F(beta)*sqrt_w
+            JF_beta = self.JF(beta)*sqrt_W
             Y = self.Y*sqrt_w
             Z = self.Z*sqrt_W
         else:
             F_beta = self.F(beta)
+            JF_beta = self.JF(beta)
             Y = self.Y
             Z = self.Z
+
+        return F_beta, JF_beta, Y, Z
+
+    def objective(self, x, use_ad=False):
+        # unpack variable
+        beta, gamma = self._get_vars(x)
+
+        # trimming option
+        F_beta, _, Y, Z = self._get_nll_components(beta)
 
         # residual and variance
         R = Y - F_beta
@@ -305,23 +317,10 @@ class LimeTr:
             return g
 
         # unpack variable
-        beta = x[self.idx_beta]
-        gamma = x[self.idx_gamma]
-        gamma[gamma <= 0.0] = 0.0
+        beta, gamma = self._get_vars(x)
 
         # trimming option
-        if self.use_trimming:
-            sqrt_w = np.sqrt(self.w)
-            sqrt_W = sqrt_w.reshape(self.N, 1)
-            F_beta = self.F(beta)*sqrt_w
-            JF_beta = self.JF(beta)*sqrt_W
-            Y = self.Y*sqrt_w
-            Z = self.Z*sqrt_W
-        else:
-            F_beta = self.F(beta)
-            JF_beta = self.JF(beta)
-            Y = self.Y
-            Z = self.Z
+        F_beta, JF_beta, Y, Z = self._get_nll_components(beta)
 
         # residual and variance
         R = Y - F_beta
@@ -333,7 +332,7 @@ class LimeTr:
 
         # gradient for gamma
         DZ = D.invdot(Z)
-        g_gamma = 0.5*np.sum(Z*DZ, axis=0) -\
+        g_gamma = 0.5*np.sum(Z*DZ, axis=0) - \
             0.5*np.sum(
                 np.add.reduceat(DZ.T*R, self.idx_split, axis=1)**2,
                 axis=1)
