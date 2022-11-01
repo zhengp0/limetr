@@ -1,6 +1,4 @@
 # nonlinear mixed effects model
-from copy import deepcopy
-
 import numpy as np
 from numpy.typing import NDArray
 from scipy.linalg import block_diag
@@ -264,7 +262,7 @@ class LimeTr:
 
         return F_beta, JF_beta, Y, Z
 
-    def objective(self, x, use_ad=False):
+    def objective(self, x):
         # unpack variable
         beta, gamma = self._get_vars(x)
 
@@ -276,21 +274,9 @@ class LimeTr:
 
         val = 0.5*self.N*np.log(2.0*np.pi)
 
-        if use_ad:
-            # should only use when testing
-            split_idx = np.cumsum(self.n)[:-1]
-            v_study = np.split(self.V, split_idx)
-            z_study = np.split(Z, split_idx, axis=0)
-            D = block_diag(*[np.diag(v) + (z*gamma).dot(z.T)
-                             for v, z in zip(v_study, z_study)])
-            inv_D = np.linalg.inv(D)
-
-            val += 0.5*np.log(np.linalg.det(D))
-            val += 0.5*R.dot(inv_D.dot(R))
-        else:
-            D = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
-            val += 0.5*D.logdet()
-            val += 0.5*R.dot(D.invdot(R))
+        D = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        val += 0.5*D.logdet()
+        val += 0.5*R.dot(D.invdot(R))
 
         # add gpriors
         if self.use_regularizer:
@@ -304,18 +290,7 @@ class LimeTr:
 
         return val
 
-    def gradient(self, x, use_ad=False, eps=1e-12):
-        if use_ad:
-            # should only use when testing
-            g = np.zeros(self.k_total)
-            z = x + 0j
-            for i in range(self.k_total):
-                z[i] += eps*1j
-                g[i] = self.objective(z, use_ad=use_ad).imag/eps
-                z[i] -= eps*1j
-
-            return g
-
+    def gradient(self, x):
         # unpack variable
         beta, gamma = self._get_vars(x)
 
@@ -391,18 +366,7 @@ class LimeTr:
 
         return val
 
-    def gradientTrimming(self, w, use_ad=False, eps=1e-10):
-        if use_ad:
-            # only use when testing
-            g = np.zeros(self.N)
-            z = w + 0j
-            for i in range(self.N):
-                z[i] += eps*1j
-                g[i] = self.objectiveTrimming(z).imag/eps
-                z[i] -= eps*1j
-
-            return g
-
+    def gradientTrimming(self, w):
         t = (self.Z**2).dot(self.gamma)
         r = (self.Y - self.F(self.beta))**2
         d = self.V + t
