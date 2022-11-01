@@ -3,6 +3,121 @@ from limetr import LimeTr
 from scipy.linalg import block_diag
 
 
+def lmtr_test_problem(
+    use_trimming=False,
+    use_constraints=False,
+    use_regularizer=False,
+    use_uprior=False,
+    use_gprior=False
+):
+    m = 10
+    n = [5]*m
+    N = sum(n)
+    k_beta = 3
+    k_gamma = 2
+    k = k_beta + k_gamma
+
+    beta_t = np.random.randn(k_beta)
+    gamma_t = np.random.rand(k_gamma)*0.09 + 0.01
+
+    X = np.random.randn(N, k_beta)
+    Z = np.random.randn(N, k_gamma)
+
+    S = np.random.rand(N)*0.09 + 0.01
+    V = S**2
+    D = np.diag(V) + (Z*gamma_t).dot(Z.T)
+
+    U = np.random.multivariate_normal(np.zeros(N), D)
+    E = np.random.randn(N)*S
+
+    Y = X.dot(beta_t) + U + E
+
+    def F(beta, X=X):
+        return X.dot(beta)
+
+    def JF(beta, X=X):
+        return X
+
+    # constraints, regularizer and priors
+    if use_constraints:
+        M = np.ones((1, k))
+
+        def C(x, M=M):
+            return M.dot(x)
+
+        def JC(x, M=M):
+            return M
+
+        c = np.array([[0.0], [1.0]])
+    else:
+        C, JC, c = None, None, None
+
+    if use_regularizer:
+        M = np.ones((1, k))
+
+        def H(x, M=M):
+            return M.dot(x)
+
+        def JH(x, M=M):
+            return M
+
+        h = np.array([[0.0], [2.0]])
+    else:
+        H, JH, h = None, None, None
+
+    if use_uprior:
+        uprior = np.array([[0.0]*k, [np.inf]*k])
+    else:
+        uprior = None
+
+    if use_gprior:
+        gprior = np.array([[0.0]*k, [2.0]*k])
+    else:
+        gprior = None
+
+    if use_trimming:
+        inlier_percentage = 0.9
+    else:
+        inlier_percentage = 1.0
+
+    return LimeTr(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
+                  C=C, JC=JC, c=c,
+                  H=H, JH=JH, h=h,
+                  uprior=uprior, gprior=gprior,
+                  inlier_percentage=inlier_percentage)
+
+
+def lmtr_test_problem_lasso():
+    m = 100
+    n = [1]*m
+    N = sum(n)
+    k_beta = 150
+    k_gamma = 1
+    k = k_beta + k_gamma
+
+    beta_t = np.zeros(k_beta)
+    beta_t[np.random.choice(k_beta, 5)] = np.sign(np.random.randn(5))
+
+    X = np.random.randn(N, k_beta)
+    Z = np.ones((N, k_gamma))
+    Y = X.dot(beta_t)
+    S = np.repeat(1.0, N)
+
+    weight = 0.1*np.linalg.norm(X.T.dot(Y), np.inf)
+
+    def F(beta):
+        return X.dot(beta)
+
+    def JF(beta):
+        return X
+
+    uprior = np.array([[-np.inf]*k_beta + [0.0], [np.inf]*k_beta + [0.0]])
+    lprior = np.array([[0.0]*k, [np.sqrt(2.0)/weight]*k])
+
+    return LimeTr(n, k_beta, k_gamma, Y, F, JF, Z, S=S,
+                  uprior=uprior, lprior=lprior)
+
+
 def lmtr_objective(lmtr, x):
     # unpack variable
     beta, gamma = lmtr._get_vars(x)
@@ -65,11 +180,11 @@ def lmtr_gradient_trimming(lmtr, w, eps=1e-10):
 def test_gradient():
     # setup test problem
     # -------------------------------------------------------------------------
-    model = LimeTr.testProblem(use_trimming=True,
-                               use_constraints=True,
-                               use_regularizer=True,
-                               use_uprior=True,
-                               use_gprior=True)
+    model = lmtr_test_problem(use_trimming=True,
+                              use_constraints=True,
+                              use_regularizer=True,
+                              use_uprior=True,
+                              use_gprior=True)
 
     tol = 1e-6
 
@@ -88,7 +203,7 @@ def test_gradient():
 def test_limetr_gradientTrimming():
     # setup test problem
     # -------------------------------------------------------------------------
-    model = LimeTr.testProblem(use_trimming=True)
+    model = lmtr_test_problem(use_trimming=True)
 
     # decouple all the studies
     model.n = np.array([1]*model.N)
@@ -109,7 +224,7 @@ def test_limetr_gradientTrimming():
 # def test_limetr_lasso():
 #     # setup test problem
 #     # -------------------------------------------------------------------------
-#     model = LimeTr.testProblemLasso()
+#     model = lmtr_test_problem_lasso()
 
 #     tol = 1e-6
 
@@ -135,10 +250,10 @@ def test_limetr_gradientTrimming():
 def test_limetr_objective():
     # setup test problem
     # -------------------------------------------------------------------------
-    model = LimeTr.testProblem(use_constraints=True,
-                               use_regularizer=True,
-                               use_uprior=True,
-                               use_gprior=True)
+    model = lmtr_test_problem(use_constraints=True,
+                              use_regularizer=True,
+                              use_uprior=True,
+                              use_gprior=True)
 
     tol = 1e-8
 
@@ -157,7 +272,7 @@ def test_limetr_objective():
 def test_limetr_objectiveTrimming():
     # setup test problem
     # -------------------------------------------------------------------------
-    model = LimeTr.testProblem(use_trimming=True)
+    model = lmtr_test_problem(use_trimming=True)
 
     tol = 1e-8
 
