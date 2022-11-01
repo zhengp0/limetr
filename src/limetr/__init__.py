@@ -232,7 +232,7 @@ class LimeTr:
 
         assert 0.0 < self.inlier_percentage <= 1.0
         if self.use_trimming and self.certain_inlier_id is not None:
-            assert isinstance(self.certain_inlier_id, np.ndarray)
+            assert isinstance(self.certain_inlier_id, NDArray)
             assert self.certain_inlier_id.dtype == int
             assert self.certain_inlier_id.ndim == 1
             assert self.certain_inlier_id.size <= self.num_inliers
@@ -483,40 +483,27 @@ class LimeTr:
 
         return self.beta, self.gamma, self.w
 
-    def estimateRE(self):
-        """
-        estimate random effect after fitModel
-        """
-        if self.soln is None:
-            print('Please fit the model first.')
-            return None
-
-        if self.use_trimming:
-            R = (self.Y - self.F(self.beta))*np.sqrt(self.w)
-            Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
-        else:
-            R = self.Y - self.F(self.beta)
-            Z = self.Z
-
-        iV = 1.0/self.V
-        iVZ = Z*iV.reshape(iV.size, 1)
-
-        r = np.split(R, np.cumsum(self.n)[:-1])
-        v = np.split(self.V, np.cumsum(self.n)[:-1])
-        z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
-        ivz = np.split(iVZ, np.cumsum(self.n)[:-1], axis=0)
+    def estimate_re(self,
+                    beta: NDArray = None,
+                    gamma: NDArray = None,
+                    use_gamma: bool = True) -> NDArray:
+        beta = self.beta if beta is None else beta
+        gamma = self.gamma if gamma is None else gamma
+        r = np.split(self.Y - self.F(beta), np.cumsum(self.n)[:-1])
+        z = np.split(self.Z, np.cumsum(self.n)[:-1], axis=0)
+        v = np.split(self.S**2, np.cumsum(self.n)[:-1])
 
         u = []
         for i in range(self.m):
-            rhs = ivz[i].T.dot(r[i])
-            tmp = z[i]*self.gamma
-            mat = np.diag(v[i]) + tmp.dot(z[i].T)
-            vec = self.gamma*rhs - tmp.T.dot(np.linalg.solve(mat, tmp.dot(rhs)))
-            u.append(vec)
+            rhs = (z[i].T/v[i]).dot(r[i])
+            if use_gamma:
+                q = (z[i].T/v[i]).dot(z[i])*gamma + np.identity(self.k_gamma)
+                u.append(gamma[:, None]*np.linalg.inv(q).dot(rhs))
+            else:
+                q = (z[i].T/v[i]).dot(z[i])
+                u.append(np.linalg.inv(q).dot(rhs))
 
-        self.u = np.vstack(u)
-
-        return self.u
+        return np.vstack(u)
 
     def get_re_vcov(self):
         if self.soln is None:
@@ -537,29 +524,7 @@ class LimeTr:
 
         return vcov
 
-    def estimate_re(self,
-                    beta: np.ndarray = None,
-                    gamma: np.ndarray = None,
-                    use_gamma: bool = True) -> np.ndarray:
-        beta = self.beta if beta is None else beta
-        gamma = self.gamma if gamma is None else gamma
-        r = np.split(self.Y - self.F(beta), np.cumsum(self.n)[:-1])
-        z = np.split(self.Z, np.cumsum(self.n)[:-1], axis=0)
-        v = np.split(self.S**2, np.cumsum(self.n)[:-1])
-
-        u = []
-        for i in range(self.m):
-            rhs = (z[i].T/v[i]).dot(r[i])
-            if use_gamma:
-                q = (z[i].T/v[i]).dot(z[i])*gamma + np.identity(self.k_gamma)
-                u.append(gamma[:, None]*np.linalg.inv(q).dot(rhs))
-            else:
-                q = (z[i].T/v[i]).dot(z[i])
-                u.append(np.linalg.inv(q).dot(rhs))
-
-        return np.vstack(u)
-
-    def get_gamma_fisher(self, gamma: np.ndarray) -> np.ndarray:
+    def get_gamma_fisher(self, gamma: NDArray) -> NDArray:
         z = np.split(self.Z, np.cumsum(self.n)[:-1], axis=0)
         v = np.split(self.S**2, np.cumsum(self.n)[:-1])
         H = np.zeros((self.k_gamma, self.k_gamma))
