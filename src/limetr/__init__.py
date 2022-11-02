@@ -356,7 +356,7 @@ class LimeTr:
 
         return hessian
 
-    def objectiveTrimming(self, w):
+    def objective_trimming(self, w):
         t = (self.Z**2).dot(self.gamma)
         r = self.Y - self.F(self.beta)
         d = self.V + t
@@ -366,7 +366,7 @@ class LimeTr:
 
         return val
 
-    def gradientTrimming(self, w):
+    def gradient_trimming(self, w):
         t = (self.Z**2).dot(self.gamma)
         r = (self.Y - self.F(self.beta))**2
         d = self.V + t
@@ -403,13 +403,13 @@ class LimeTr:
         self.soln = self.info.x
         self.beta, self.gamma = self._get_vars(self.soln)
 
-    def fitModel(self, x0=None,
-                 inner_options=None,
-                 outer_verbose=False,
-                 outer_max_iter=100,
-                 outer_step_size=1.0,
-                 outer_tol=1e-6,
-                 normalize_trimming_grad=False):
+    def fit(self, x0=None,
+            inner_options=None,
+            outer_verbose=False,
+            outer_max_iter=100,
+            outer_step_size=1.0,
+            outer_tol=1e-6,
+            normalize_trimming_grad=False):
 
         if not self.use_trimming:
             self.optimize(x0=x0, options=inner_options)
@@ -424,7 +424,7 @@ class LimeTr:
         while err >= outer_tol:
             self.optimize(x0=self.soln, options=inner_options)
 
-            w_grad = self.gradientTrimming(self.w)
+            w_grad = self.gradient_trimming(self.w)
             if normalize_trimming_grad:
                 w_grad /= np.linalg.norm(w_grad)
             w_new = utils.proj_capped_simplex(
@@ -438,7 +438,7 @@ class LimeTr:
             num_iter += 1
 
             if outer_verbose:
-                obj = self.objectiveTrimming(self.w)
+                obj = self.objective_trimming(self.w)
                 print('iter %4d, obj %8.2e, err %8.2e' % (num_iter, obj, err))
 
             if num_iter >= outer_max_iter:

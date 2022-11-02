@@ -171,7 +171,7 @@ def lmtr_gradient_trimming(lmtr, w, eps=1e-10):
     z = w + 0j
     for i in range(lmtr.N):
         z[i] += eps*1j
-        g[i] = lmtr.objectiveTrimming(z).imag/eps
+        g[i] = lmtr.objective_trimming(z).imag/eps
         z[i] -= eps*1j
 
     return g
@@ -200,7 +200,7 @@ def test_gradient():
     assert err < tol
 
 
-def test_limetr_gradientTrimming():
+def test_limetr_gradient_trimming():
     # setup test problem
     # -------------------------------------------------------------------------
     model = lmtr_test_problem(use_trimming=True)
@@ -210,12 +210,12 @@ def test_limetr_gradientTrimming():
 
     tol = 1e-8
 
-    # test gradientTrimming
+    # test gradient_trimming
     # -------------------------------------------------------------------------
     w = model.w
 
     tr_grad = lmtr_gradient_trimming(model, w)
-    my_grad = model.gradientTrimming(w)
+    my_grad = model.gradient_trimming(w)
 
     err = np.linalg.norm(tr_grad - my_grad)
     assert err < tol
@@ -269,14 +269,14 @@ def test_limetr_objective():
     assert err < tol
 
 
-def test_limetr_objectiveTrimming():
+def test_limetr_objective_trimming():
     # setup test problem
     # -------------------------------------------------------------------------
     model = lmtr_test_problem(use_trimming=True)
 
     tol = 1e-8
 
-    # test objectiveTrimming
+    # test objective_trimming
     # -------------------------------------------------------------------------
     w = model.w
 
@@ -286,7 +286,7 @@ def test_limetr_objectiveTrimming():
 
     tr_obj = 0.5*np.sum(r**2*w/d) + 0.5*model.N*np.log(2.0*np.pi)\
         + 0.5*w.dot(np.log(d))
-    my_obj = model.objectiveTrimming(w)
+    my_obj = model.objective_trimming(w)
 
     err = np.abs(tr_obj - my_obj)
     assert err < tol
