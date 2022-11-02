@@ -1,4 +1,6 @@
 # nonlinear mixed effects model
+from warnings import warn
+
 import numpy as np
 from numpy.typing import NDArray
 from scipy.linalg import block_diag
@@ -195,9 +197,9 @@ class LimeTr:
         self.gamma = np.repeat(0.01, self.k_gamma)
 
         # check the input
-        self.check()
+        self._check()
 
-    def check(self):
+    def _check(self):
         assert self.Y.shape == (self.N,)
         assert self.Z.shape == (self.N, self.k_gamma)
         if self.S is not None:
@@ -221,7 +223,7 @@ class LimeTr:
         assert 0.0 < self.inlier_percentage <= 1.0
 
         if self.k > self.N:
-            print('Warning: information insufficient!')
+            warn('information insufficient!')
 
     def _get_vars(self, x: NDArray) -> tuple[NDArray, NDArray]:
         beta, gamma = x[self.idx_beta], x[self.idx_gamma]
