@@ -13,7 +13,6 @@ class LimeTr:
                  C=None, JC=None, c=None,
                  H=None, JH=None, h=None,
                  uprior=None, gprior=None, lprior=None,
-                 certain_inlier_id=None,
                  inlier_percentage=1.0):
         """
         Create LimeTr object, for general mixed effects model
@@ -183,20 +182,11 @@ class LimeTr:
 
         # trimming option
         self.use_trimming = (0.0 < inlier_percentage < 1.0)
-        self.certain_inlier_id = certain_inlier_id
         self.inlier_percentage = inlier_percentage
         self.num_inliers = np.floor(inlier_percentage*self.N)
         self.num_outliers = self.N - self.num_inliers
         self.w = np.repeat(self.num_inliers/self.N, self.N)
-
-        if self.certain_inlier_id is not None:
-            self.certain_inlier_id = np.unique(self.certain_inlier_id)
-            self.active_trimming_id = np.array(
-                [i
-                 for i in range(self.N)
-                 if i not in self.certain_inlier_id])
-        else:
-            self.active_trimming_id = None
+        self.active_trimming_id = None
 
         # specify solution to be None
         self.soln = None
@@ -229,13 +219,6 @@ class LimeTr:
             assert np.all(self.gprior[1] > 0.0)
 
         assert 0.0 < self.inlier_percentage <= 1.0
-        if self.use_trimming and self.certain_inlier_id is not None:
-            assert isinstance(self.certain_inlier_id, NDArray)
-            assert self.certain_inlier_id.dtype == int
-            assert self.certain_inlier_id.ndim == 1
-            assert self.certain_inlier_id.size <= self.num_inliers
-            assert np.min(self.certain_inlier_id) >= 0
-            assert np.max(self.certain_inlier_id) < self.N
 
         if self.k > self.N:
             print('Warning: information insufficient!')
