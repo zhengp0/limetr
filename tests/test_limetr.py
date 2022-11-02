@@ -138,7 +138,8 @@ def lmtr_objective(lmtr, x):
                      for v, z in zip(v_study, z_study)])
     inv_D = np.linalg.inv(D)
 
-    val += 0.5*np.log(np.linalg.det(D))
+    eigvals = np.linalg.eigvals(D)
+    val += 0.5*np.sum(np.log(eigvals))
     val += 0.5*R.dot(inv_D.dot(R))
 
     # add gpriors
