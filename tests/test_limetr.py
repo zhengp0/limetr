@@ -187,8 +187,6 @@ def test_gradient():
                               use_uprior=True,
                               use_gprior=True)
 
-    tol = 1e-6
-
     # test the gradient
     # -------------------------------------------------------------------------
     x = np.random.randn(model.k)
@@ -197,8 +195,20 @@ def test_gradient():
     tr_grad = lmtr_gradient(model, x)
     my_grad = model.gradient(x)
 
-    err = np.linalg.norm(tr_grad - my_grad)
-    assert err < tol
+    assert np.allclose(tr_grad, my_grad)
+
+
+def test_hessian():
+    model = lmtr_test_problem(use_trimming=True,
+                              use_constraints=True,
+                              use_regularizer=True,
+                              use_uprior=True,
+                              use_gprior=True)
+    x = np.random.randn(model.k)
+    x[model.idx_gamma] = 0.1
+    hess = model.hessian(x)
+    eigvals = np.linalg.eigvals(hess)
+    assert (eigvals >= 0).all()
 
 
 def test_limetr_gradient_trimming():
@@ -209,8 +219,6 @@ def test_limetr_gradient_trimming():
     # decouple all the studies
     model.n = np.array([1]*model.N)
 
-    tol = 1e-8
-
     # test gradient_trimming
     # -------------------------------------------------------------------------
     w = model.w
@@ -218,8 +226,7 @@ def test_limetr_gradient_trimming():
     tr_grad = lmtr_gradient_trimming(model, w)
     my_grad = model.gradient_trimming(w)
 
-    err = np.linalg.norm(tr_grad - my_grad)
-    assert err < tol
+    assert np.allclose(tr_grad, my_grad)
 
 
 # def test_limetr_lasso():
@@ -256,8 +263,6 @@ def test_limetr_objective():
                               use_uprior=True,
                               use_gprior=True)
 
-    tol = 1e-8
-
     # test objective
     # -------------------------------------------------------------------------
     x = np.random.randn(model.k)
@@ -266,16 +271,13 @@ def test_limetr_objective():
     tr_obj = lmtr_objective(model, x)
     my_obj = model.objective(x)
 
-    err = np.abs(tr_obj - my_obj)
-    assert err < tol
+    assert np.isclose(tr_obj, my_obj)
 
 
 def test_limetr_objective_trimming():
     # setup test problem
     # -------------------------------------------------------------------------
     model = lmtr_test_problem(use_trimming=True)
-
-    tol = 1e-8
 
     # test objective_trimming
     # -------------------------------------------------------------------------
@@ -289,5 +291,4 @@ def test_limetr_objective_trimming():
         + 0.5*w.dot(np.log(d))
     my_obj = model.objective_trimming(w)
 
-    err = np.abs(tr_obj - my_obj)
-    assert err < tol
+    assert np.isclose(tr_obj, my_obj)
