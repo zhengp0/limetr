@@ -1,4 +1,5 @@
 # nonlinear mixed effects model
+from typing import Callable, Optional
 from warnings import warn
 
 import numpy as np
@@ -11,11 +12,27 @@ from limetr import utils
 
 
 class LimeTr:
-    def __init__(self, n, k_beta, k_gamma, Y, F, JF, Z, S,
-                 C=None, JC=None, c=None,
-                 H=None, JH=None, h=None,
-                 uprior=None, gprior=None, lprior=None,
-                 inlier_percentage=1.0):
+    def __init__(
+        self,
+        n: NDArray,
+        k_beta: int,
+        k_gamma: int,
+        Y: NDArray,
+        F: Callable,
+        JF: Callable,
+        Z: NDArray,
+        S: NDArray,
+        C: Optional[Callable] = None,
+        JC: Optional[Callable] = None,
+        c: Optional[NDArray] = None,
+        H: Optional[Callable] = None,
+        JH: Optional[Callable] = None,
+        h: Optional[NDArray] = None,
+        uprior: Optional[NDArray] = None,
+        gprior: Optional[NDArray] = None,
+        lprior: Optional[NDArray] = None,
+        inlier_percentage: float = 1.0,
+    ):
         """
         Create LimeTr object, for general mixed effects model
 
@@ -39,7 +56,7 @@ class LimeTr:
             observation standard deviation
         """
         # pass in the dimension
-        self.n = np.array(n)
+        self.n = np.asarray(n).astype(int)
         self.m = len(n)
         self.N = sum(n)
         self.k_beta = k_beta
@@ -247,7 +264,7 @@ class LimeTr:
 
         return F_beta, JF_beta, Y, Z
 
-    def objective(self, x):
+    def objective(self, x: NDArray) -> float:
         # unpack variable
         beta, gamma = self._get_vars(x)
 
@@ -275,7 +292,7 @@ class LimeTr:
 
         return val
 
-    def gradient(self, x):
+    def gradient(self, x: NDArray) -> NDArray:
         # unpack variable
         beta, gamma = self._get_vars(x)
 
@@ -341,7 +358,7 @@ class LimeTr:
 
         return hessian
 
-    def objective_trimming(self, w):
+    def objective_trimming(self, w: NDArray) -> float:
         t = (self.Z**2).dot(self.gamma)
         r = self.Y - self.F(self.beta)
         d = self.V + t
@@ -351,7 +368,7 @@ class LimeTr:
 
         return val
 
-    def gradient_trimming(self, w):
+    def gradient_trimming(self, w: NDArray) -> NDArray:
         t = (self.Z**2).dot(self.gamma)
         r = (self.Y - self.F(self.beta))**2
         d = self.V + t
@@ -361,7 +378,9 @@ class LimeTr:
 
         return g
 
-    def optimize(self, x0=None, options=None):
+    def optimize(self,
+                 x0: Optional[NDArray] = None,
+                 options: Optional[dict] = None):
         if x0 is None:
             x0 = np.hstack((self.beta, self.gamma))
             if self.use_lprior:
@@ -388,13 +407,14 @@ class LimeTr:
         self.soln = self.info.x
         self.beta, self.gamma = self._get_vars(self.soln)
 
-    def fit(self, x0=None,
-            inner_options=None,
-            outer_verbose=False,
-            outer_max_iter=100,
-            outer_step_size=1.0,
-            outer_tol=1e-6,
-            normalize_trimming_grad=False):
+    def fit(self,
+            x0: Optional[NDArray] = None,
+            inner_options: Optional[dict] = None,
+            outer_verbose: bool = False,
+            outer_max_iter: int = 100,
+            outer_step_size: float = 1.0,
+            outer_tol: float = 1e-6,
+            normalize_trimming_grad: bool = False):
 
         if not self.use_trimming:
             self.optimize(x0=x0, options=inner_options)
