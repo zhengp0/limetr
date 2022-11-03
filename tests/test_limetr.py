@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from limetr import LimeTr
 from scipy.linalg import block_diag
 
@@ -10,6 +11,7 @@ def lmtr_test_problem(
     use_uprior=False,
     use_gprior=False
 ):
+    np.random.seed(123)
     m = 10
     n = [5]*m
     N = sum(n)
@@ -88,10 +90,11 @@ def lmtr_test_problem(
 
 
 def lmtr_test_problem_lasso():
+    np.random.seed(123)
     m = 100
     n = [1]*m
     N = sum(n)
-    k_beta = 150
+    k_beta = 10
     k_gamma = 1
     k = k_beta + k_gamma
 
@@ -229,30 +232,30 @@ def test_limetr_gradient_trimming():
     assert np.allclose(tr_grad, my_grad)
 
 
-# def test_limetr_lasso():
-#     # setup test problem
-#     # -------------------------------------------------------------------------
-#     model = lmtr_test_problem_lasso()
+@pytest.mark.filterwarnings("ignore")
+def test_limetr_lasso():
+    # setup test problem
+    # -------------------------------------------------------------------------
+    model = lmtr_test_problem_lasso()
 
-#     tol = 1e-6
+    tol = 1e-5
 
-#     # test lasso
-#     # -------------------------------------------------------------------------
-#     model.optimize()
-#     beta = model.beta
-#     zero_idx = np.abs(beta) <= 1e-8
-#     beta[zero_idx] = 0.0
+    # test lasso
+    # -------------------------------------------------------------------------
+    model.optimize()
+    beta = model.beta
+    zero_idx = np.abs(beta) <= 1e-6
+    beta[zero_idx] = 0.0
 
-#     # calculate the gradient
-#     g_beta = -model.JF(beta).T.dot(model.Y - model.F(beta))
-#     for i in range(model.k_beta):
-#         if beta[i] == 0.0 and np.abs(g_beta[i]) < model.lw[i]:
-#             g_beta[i] = 0.0
-#         else:
-#             g_beta[i] += np.sign(beta[i])*model.lw[i]
+    # calculate the gradient
+    g_beta = -model.JF(beta).T.dot(model.Y - model.F(beta))
+    for i in range(model.k_beta):
+        if beta[i] == 0.0 and np.abs(g_beta[i]) < model.lw[i]:
+            g_beta[i] = 0.0
+        else:
+            g_beta[i] += np.sign(beta[i])*model.lw[i]
 
-#     err = np.linalg.norm(g_beta)
-#     assert err < tol
+    assert np.abs(g_beta).max() < tol
 
 
 def test_limetr_objective():

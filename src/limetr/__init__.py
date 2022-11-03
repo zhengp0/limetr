@@ -356,6 +356,9 @@ class LimeTr:
             idx = np.arange(self.k)
             hessian[idx, idx] += self.gw
 
+        if self.use_lprior:
+            hessian = block_diag(hessian, np.identity(self.k))
+
         return hessian
 
     def objective_trimming(self, w: NDArray) -> float:
@@ -386,13 +389,11 @@ class LimeTr:
             if self.use_lprior:
                 x0 = np.hstack((x0, np.zeros(self.k)))
 
-        assert x0.size == self.k_total
-
         constraints = [LinearConstraint(
-            self.JC(),
+            self.jacobian(x0),
             self.cl,
             self.cu
-        )] if self.JC is not None else []
+        )] if self.jacobian is not None else []
         self.info = minimize(
             self.objective,
             x0,
