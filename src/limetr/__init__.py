@@ -147,7 +147,6 @@ class LimeTr:
 
                 def jacobian(x):
                     v = x[:self.k]
-                    v_abs = x[self.k:]
                     Id = np.eye(self.k)
 
                     mat1 = JC(v)
@@ -388,12 +387,13 @@ class LimeTr:
             x0 = np.hstack((self.beta, self.gamma))
             if self.use_lprior:
                 x0 = np.hstack((x0, np.zeros(self.k)))
-
-        constraints = [LinearConstraint(
-            self.jacobian(x0),
-            self.cl,
-            self.cu
-        )] if self.jacobian is not None else []
+        constraints = []
+        if self.use_lprior or self.use_constraints:
+            constraints = [LinearConstraint(
+                self.jacobian(x0),
+                self.cl,
+                self.cu
+            )]
         self.info = minimize(
             self.objective,
             x0,
@@ -459,16 +459,19 @@ class LimeTr:
                     use_gamma: bool = True) -> NDArray:
         beta = self.beta if beta is None else beta
         gamma = self.gamma if gamma is None else gamma
-        r = np.split(self.Y - self.F(beta), np.cumsum(self.n)[:-1])
-        z = np.split(self.Z, np.cumsum(self.n)[:-1], axis=0)
-        v = np.split(self.S**2, np.cumsum(self.n)[:-1])
+
+        F_beta, _, Y, Z = self._get_nll_components(self.beta)
+
+        r = np.split(Y - F_beta, np.cumsum(self.n)[:-1])
+        z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
+        v = np.split(self.V, np.cumsum(self.n)[:-1])
 
         u = []
         for i in range(self.m):
             rhs = (z[i].T/v[i]).dot(r[i])
             if use_gamma:
                 q = (z[i].T/v[i]).dot(z[i])*gamma + np.identity(self.k_gamma)
-                u.append(gamma[:, None]*np.linalg.inv(q).dot(rhs))
+                u.append(gamma*np.linalg.inv(q).dot(rhs))
             else:
                 q = (z[i].T/v[i]).dot(z[i])
                 u.append(np.linalg.inv(q).dot(rhs))

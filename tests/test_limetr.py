@@ -295,3 +295,23 @@ def test_limetr_objective_trimming():
     my_obj = model.objective_trimming(w)
 
     assert np.isclose(tr_obj, my_obj)
+
+
+def test_estimate_re():
+    model = lmtr_test_problem()
+    model.optimize()
+
+    re = model.estimate_re()
+    F_beta, _, Y, Z = model._get_nll_components(model.beta)
+
+    r = F_beta + np.sum(Z*np.repeat(re, model.n, axis=0), axis=1) - Y
+    r = np.split(r, np.cumsum(model.n)[:-1])
+    z = np.split(Z, np.cumsum(model.n)[:-1], axis=0)
+    v = np.split(model.V, np.cumsum(model.n)[:-1])
+
+    g = np.vstack([
+        (zi.T/vi).dot(ri) + ui / model.gamma
+        for zi, vi, ri, ui in zip(z, v, r, re)
+    ])
+
+    assert np.allclose(g, 0.0)
