@@ -126,7 +126,7 @@ def lmtr_objective(lmtr, x):
     beta, gamma = lmtr._get_vars(x)
 
     # trimming option
-    F_beta, _, Y, Z = lmtr._get_nll_components(beta)
+    F_beta, _, Y, Z, V = lmtr._get_nll_components(beta)
 
     # residual and variance
     R = Y - F_beta
@@ -135,7 +135,7 @@ def lmtr_objective(lmtr, x):
 
     # should only use when testing
     split_idx = np.cumsum(lmtr.n)[:-1]
-    v_study = np.split(lmtr.V, split_idx)
+    v_study = np.split(V, split_idx)
     z_study = np.split(Z, split_idx, axis=0)
     D = block_diag(*[np.diag(v) + (z*gamma).dot(z.T)
                      for v, z in zip(v_study, z_study)])
@@ -302,12 +302,12 @@ def test_estimate_re():
     model.optimize()
 
     re = model.estimate_re()
-    F_beta, _, Y, Z = model._get_nll_components(model.beta)
+    F_beta, _, Y, Z, V = model._get_nll_components(model.beta)
 
     r = F_beta + np.sum(Z*np.repeat(re, model.n, axis=0), axis=1) - Y
     r = np.split(r, np.cumsum(model.n)[:-1])
     z = np.split(Z, np.cumsum(model.n)[:-1], axis=0)
-    v = np.split(model.V, np.cumsum(model.n)[:-1])
+    v = np.split(V, np.cumsum(model.n)[:-1])
 
     g = np.vstack([
         (zi.T/vi).dot(ri) + ui / model.gamma

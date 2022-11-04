@@ -255,27 +255,29 @@ class LimeTr:
             JF_beta = self.JF(beta)*sqrt_W
             Y = self.Y*sqrt_w
             Z = self.Z*sqrt_W
+            V = self.V**self.w
         else:
             F_beta = self.F(beta)
             JF_beta = self.JF(beta)
             Y = self.Y
             Z = self.Z
+            V = self.V
 
-        return F_beta, JF_beta, Y, Z
+        return F_beta, JF_beta, Y, Z, V
 
     def objective(self, x: NDArray) -> float:
         # unpack variable
         beta, gamma = self._get_vars(x)
 
         # trimming option
-        F_beta, _, Y, Z = self._get_nll_components(beta)
+        F_beta, _, Y, Z, V = self._get_nll_components(beta)
 
         # residual and variance
         R = Y - F_beta
 
         val = 0.5*self.N*np.log(2.0*np.pi)
 
-        D = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        D = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
         val += 0.5*D.logdet()
         val += 0.5*R.dot(D.invdot(R))
 
@@ -296,11 +298,11 @@ class LimeTr:
         beta, gamma = self._get_vars(x)
 
         # trimming option
-        F_beta, JF_beta, Y, Z = self._get_nll_components(beta)
+        F_beta, JF_beta, Y, Z, V = self._get_nll_components(beta)
 
         # residual and variance
         R = Y - F_beta
-        D = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        D = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         # gradient for beta
         DR = D.invdot(R)
@@ -331,13 +333,13 @@ class LimeTr:
 
     def hessian(self, x: NDArray) -> NDArray:
         beta, gamma = self._get_vars(x)
-        _, JF_beta, _, Z = self._get_nll_components(beta)
+        _, JF_beta, _, Z, V = self._get_nll_components(beta)
 
         sqrt_gamma = np.sqrt(gamma)
-        d = BDLMat(diags=self.V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        d = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         split_idx = np.cumsum(self.n)[:-1]
-        v_study = np.split(self.V, split_idx)
+        v_study = np.split(V, split_idx)
         z_study = np.split(Z, split_idx, axis=0)
         dlmats = [DLMat(v, z*sqrt_gamma) for v, z in zip(v_study, z_study)]
 
@@ -460,11 +462,11 @@ class LimeTr:
         beta = self.beta if beta is None else beta
         gamma = self.gamma if gamma is None else gamma
 
-        F_beta, _, Y, Z = self._get_nll_components(self.beta)
+        F_beta, _, Y, Z, V = self._get_nll_components(self.beta)
 
         r = np.split(Y - F_beta, np.cumsum(self.n)[:-1])
         z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
-        v = np.split(self.V, np.cumsum(self.n)[:-1])
+        v = np.split(V, np.cumsum(self.n)[:-1])
 
         u = []
         for i in range(self.m):
@@ -483,11 +485,9 @@ class LimeTr:
             print('Please fit the model first.')
             return None
 
-        Z = self.Z
-        if self.use_trimming:
-            Z = self.Z*(np.sqrt(self.w).reshape(self.N, 1))
+        _, _, _, Z, V = self._get_nll_components(self.beta)
 
-        v = np.split(self.V, np.cumsum(self.n)[:-1])
+        v = np.split(V, np.cumsum(self.n)[:-1])
         z = np.split(Z, np.cumsum(self.n)[:-1], axis=0)
 
         vcov = []
