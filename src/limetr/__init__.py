@@ -277,7 +277,7 @@ class LimeTr:
 
         val = 0.5*self.N*np.log(2.0*np.pi)
 
-        D = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        D = BDLMat(dvecs=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
         val += 0.5*D.logdet()
         val += 0.5*R.dot(D.invdot(R))
 
@@ -302,7 +302,7 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        D = BDLMat(dvecs=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         # gradient for beta
         DR = D.invdot(R)
@@ -336,7 +336,7 @@ class LimeTr:
         _, JF_beta, _, Z, V = self._get_nll_components(beta)
 
         sqrt_gamma = np.sqrt(gamma)
-        d = BDLMat(diags=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        d = BDLMat(dvecs=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
 
         split_idx = np.cumsum(self.n)[:-1]
         v_study = np.split(V, split_idx)
@@ -545,7 +545,7 @@ def get_varmat(model: LimeTr):
     Z = model.Z*np.sqrt(model.w)[:, None]
     n = model.n
     gamma = model.gamma
-    return BDLMat(diags=S**2, lmats=Z*np.sqrt(gamma), dsizes=n)
+    return BDLMat(dvecs=S**2, lmats=Z*np.sqrt(gamma), dsizes=n)
 
 
 def get_marginal_rvar(model: LimeTr):
