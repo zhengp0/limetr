@@ -1,10 +1,16 @@
-.. image:: https://github.com/zhengp0/limetr/workflows/python-build/badge.svg
+.. image:: https://img.shields.io/pypi/l/limetr
+    :target: https://github.com/zhengp0/limetr/blob/main/LICENSE
+
+.. image:: https://img.shields.io/pypi/v/limetr
+    :target: https://pypi.org/project/limetr
+
+.. image:: https://img.shields.io/github/actions/workflow/status/zhengp0/limetr/python-build.yml?branch=main
     :target: https://github.com/zhengp0/limetr/actions
 
 LimeTr
 ======
 
-:code:`limetr`, read as "lime tree", is a Python package solves mixed effects models with linear random effects.
+``limetr``, read as "lime tree", is a Python package solves mixed effects models with linear random effects.
 Moreover the package also provides robust regression option called "trimming".
 
 Installation
