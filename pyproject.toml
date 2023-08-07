@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "limetr"
+version = "0.1.1"
+description = "Robust linear mixed effects model"
+readme = "REDME.rst"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "IHME Math Sciences", email = "ihme.math.sciences@gmail.com" },
+]
+dependencies = ["numpy>=1.25.1", "scipy>=1.11.1", "matplotlib>=3.7.2", "spmat<0.1.0"]
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov"]
+docs = ["sphinx", "sphinx-autodoc-typehints", "furo"]
+
+[project.urls]
+github = "https://github.com/zhengp0/limetr"
+
+[tool.sphinx]
+project = "limetr"
+author = "IHME Math Sciences"
+copyright = "2023, IHME Math Sciences"
+version = "0.1.1"

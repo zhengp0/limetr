@@ -7,17 +7,19 @@ LimeTr
 :code:`limetr`, read as "lime tree", is a Python package solves mixed effects models with linear random effects.
 Moreover the package also provides robust regression option called "trimming".
 
-Install
--------
+Installation
+------------
 
-The package can be installed through ``pip``,
+``limetr>=0.1.0`` requires python 3.10 or higher, it can be install via
 
-.. code-block:: bash
+.. code:: bash
 
-    pip install limetr
+    pip install limetr>=0.1.0
 
-Or you could install from source, by clone this repository and do,
+For developers, you can clone the repository and install the package in the development mode.
 
-.. code-block:: bash
+.. code:: bash
 
-    python setup.py install
+    git clone https://kgithub.com/zhengp0/xspline.git
+    cd xspline
+    pip install -e ".[test,docs]"
