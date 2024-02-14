@@ -584,3 +584,31 @@ def get_R2(model: LimeTr):
 
 def get_rmse(model: LimeTr):
     return np.sqrt(get_marginal_rvar(model))
+
+
+def get_degree_of_freedom(model: LimeTr):
+    k = model.k_total
+
+    c_mat = np.empty(shape=(0, k))
+    c_vec = np.empty(shape=(0,))
+    if model.use_uprior:
+        c_mat_sub = np.identity(k)
+        c_mat = np.vstack([c_mat, -c_mat_sub, c_mat_sub])
+        c_vec = np.hstack([c_vec, -model.uprior[0], model.uprior[1]])
+    if model.use_lprior or model.use_constraints:
+        c_mat_sub = model.jacobian(model.soln)
+        c_mat = np.vstack([c_mat, -c_mat_sub, c_mat_sub])
+        c_vec = np.hstack([c_vec, -model.cl, model.cu])
+
+    # determine active constraints
+    index_active = np.isclose(c_mat.dot(model.soln), c_vec)
+    c_mat_active = c_mat[index_active]
+
+    if c_mat_active.size == 0:
+        return k
+
+    lb, ub = c_mat_active.min(axis=0), c_mat_active.max(axis=0)
+    lb[np.isclose(lb, 0.0)] = 0.0
+    ub[np.isclose(ub, 0.0)] = 0.0
+
+    return k - 0.5 * ((lb < 0) + (ub > 0)).sum()

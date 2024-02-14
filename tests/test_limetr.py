@@ -1,6 +1,12 @@
 import numpy as np
 import pytest
-from limetr import LimeTr, get_conditional_R2, get_marginal_R2, get_rmse
+from limetr import (
+    LimeTr,
+    get_conditional_R2,
+    get_marginal_R2,
+    get_rmse,
+    get_degree_of_freedom,
+)
 from scipy.linalg import block_diag
 
 
@@ -347,3 +353,11 @@ def test_performance():
     assert isinstance(conditional_r2, float)
     assert isinstance(marginal_r2, float)
     assert isinstance(rmse, float)
+
+
+def test_degree_of_freedom():
+    model = lmtr_test_problem()
+    model.optimize()
+
+    k = get_degree_of_freedom(model)
+    assert k == model.k
