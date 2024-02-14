@@ -612,3 +612,16 @@ def get_degree_of_freedom(model: LimeTr):
     ub[np.isclose(ub, 0.0)] = 0.0
 
     return k - 0.5 * ((lb < 0) + (ub > 0)).sum()
+
+
+def get_aic(model: LimeTr):
+    degree_of_freedom = get_degree_of_freedom(model)
+    return -2 * model.objective(model.soln) + 2 * degree_of_freedom
+
+
+def get_bic(model: LimeTr):
+    degree_of_freedom = get_degree_of_freedom(model)
+    return (
+        -2 * model.objective(model.soln)
+        + np.log(model.N * model.inlier_percentage) * degree_of_freedom
+    )
