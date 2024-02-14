@@ -78,11 +78,11 @@ class LimeTr:
         self.V = S**2
 
         # pass in the priors
-        self.use_constraints = (C is not None)
-        self.use_regularizer = (H is not None)
-        self.use_uprior = (uprior is not None)
-        self.use_gprior = (gprior is not None)
-        self.use_lprior = (lprior is not None)
+        self.use_constraints = C is not None
+        self.use_regularizer = H is not None
+        self.use_uprior = uprior is not None
+        self.use_gprior = gprior is not None
+        self.use_lprior = lprior is not None
 
         self.C = C
         self.JC = JC
@@ -104,17 +104,16 @@ class LimeTr:
         if self.use_regularizer:
             self.num_regularizer = H(np.zeros(self.k)).size
             self.hm = self.h[0]
-            self.hw = 1.0/self.h[1]**2
+            self.hw = 1.0 / self.h[1] ** 2
         else:
             self.num_regularizer = 0
 
         if self.use_uprior:
             self.uprior = uprior
         else:
-            self.uprior = np.array([
-                [-np.inf]*self.k_beta + [0.0]*self.k_gamma,
-                [np.inf]*self.k
-            ])
+            self.uprior = np.array(
+                [[-np.inf] * self.k_beta + [0.0] * self.k_gamma, [np.inf] * self.k]
+            )
             self.use_uprior = True
 
         self.lb = self.uprior[0]
@@ -123,40 +122,42 @@ class LimeTr:
         if self.use_gprior:
             self.gprior = gprior
             self.gm = gprior[0]
-            self.gw = 1.0/gprior[1]**2
+            self.gw = 1.0 / gprior[1] ** 2
 
         if self.use_lprior:
             self.lprior = lprior
             self.lm = lprior[0]
-            self.lw = np.sqrt(2.0)/lprior[1]
+            self.lw = np.sqrt(2.0) / lprior[1]
 
             # double dimension pass into ipopt
             self.k_total += self.k
 
             # extend the constraints matrix
             if self.use_constraints:
+
                 def constraints(x):
-                    v = x[:self.k]
-                    v_abs = x[self.k:]
+                    v = x[: self.k]
+                    v_abs = x[self.k :]
 
                     vec1 = C(v)
-                    vec2 = np.hstack((v_abs - (v - self.lm),
-                                      v_abs + (v - self.lm)))
+                    vec2 = np.hstack((v_abs - (v - self.lm), v_abs + (v - self.lm)))
 
                     return np.hstack((vec1, vec2))
 
                 def jacobian(x):
-                    v = x[:self.k]
+                    v = x[: self.k]
                     Id = np.eye(self.k)
 
                     mat1 = JC(v)
                     mat2 = np.block([[-Id, Id], [Id, Id]])
 
                     return np.vstack((mat1, mat2))
+
             else:
+
                 def constraints(x):
-                    v = x[:self.k]
-                    v_abs = x[self.k:]
+                    v = x[: self.k]
+                    v_abs = x[self.k :]
 
                     vec = np.hstack((v_abs - v, v_abs + v))
 
@@ -168,42 +169,41 @@ class LimeTr:
 
                     return mat
 
-            self.num_constraints += 2*self.k
+            self.num_constraints += 2 * self.k
             self.constraints = constraints
             self.jacobian = jacobian
-            self.cl = np.hstack((self.cl, np.zeros(2*self.k)))
-            self.cu = np.hstack((self.cu, np.repeat(np.inf, 2*self.k)))
+            self.cl = np.hstack((self.cl, np.zeros(2 * self.k)))
+            self.cu = np.hstack((self.cu, np.repeat(np.inf, 2 * self.k)))
 
             # extend the regularizer matrix
             if self.use_regularizer:
+
                 def H_new(x):
-                    v = x[:self.k]
+                    v = x[: self.k]
 
                     return H(v)
 
                 def JH_new(x):
-                    v = x[:self.k]
+                    v = x[: self.k]
 
-                    return np.hstack((JH(v),
-                                      np.zeros((self.num_regularizer,
-                                                self.k))))
+                    return np.hstack((JH(v), np.zeros((self.num_regularizer, self.k))))
 
                 self.H = H_new
                 self.JH = JH_new
 
             # extend Uniform priors
             if self.use_uprior:
-                uprior_abs = np.array([[0.0]*self.k, [np.inf]*self.k])
+                uprior_abs = np.array([[0.0] * self.k, [np.inf] * self.k])
                 self.uprior = np.hstack((self.uprior, uprior_abs))
                 self.lb = self.uprior[0]
                 self.ub = self.uprior[1]
 
         # trimming option
-        self.use_trimming = (0.0 < inlier_percentage < 1.0)
+        self.use_trimming = 0.0 < inlier_percentage < 1.0
         self.inlier_percentage = inlier_percentage
-        self.num_inliers = np.floor(inlier_percentage*self.N)
+        self.num_inliers = np.floor(inlier_percentage * self.N)
         self.num_outliers = self.N - self.num_inliers
-        self.w = np.repeat(self.num_inliers/self.N, self.N)
+        self.w = np.repeat(self.num_inliers / self.N, self.N)
         self.active_trimming_id = None
 
         # specify solution to be None
@@ -239,7 +239,7 @@ class LimeTr:
         assert 0.0 < self.inlier_percentage <= 1.0
 
         if self.k > self.N:
-            warn('information insufficient!')
+            warn("information insufficient!")
 
     def _get_vars(self, x: NDArray) -> tuple[NDArray, NDArray]:
         beta, gamma = x[self.idx_beta], x[self.idx_gamma]
@@ -251,10 +251,10 @@ class LimeTr:
         if self.use_trimming:
             sqrt_w = np.sqrt(self.w)
             sqrt_W = sqrt_w.reshape(self.N, 1)
-            F_beta = self.F(beta)*sqrt_w
-            JF_beta = self.JF(beta)*sqrt_W
-            Y = self.Y*sqrt_w
-            Z = self.Z*sqrt_W
+            F_beta = self.F(beta) * sqrt_w
+            JF_beta = self.JF(beta) * sqrt_W
+            Y = self.Y * sqrt_w
+            Z = self.Z * sqrt_W
             V = self.V**self.w
         else:
             F_beta = self.F(beta)
@@ -275,21 +275,21 @@ class LimeTr:
         # residual and variance
         R = Y - F_beta
 
-        val = 0.5*self.N*np.log(2.0*np.pi)
+        val = 0.5 * self.N * np.log(2.0 * np.pi)
 
-        D = BDLMat(dvecs=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
-        val += 0.5*D.logdet()
-        val += 0.5*R.dot(D.invdot(R))
+        D = BDLMat(dvecs=V, lmats=Z * np.sqrt(gamma), dsizes=self.n)
+        val += 0.5 * D.logdet()
+        val += 0.5 * R.dot(D.invdot(R))
 
         # add gpriors
         if self.use_regularizer:
-            val += 0.5*self.hw.dot((self.H(x) - self.hm)**2)
+            val += 0.5 * self.hw.dot((self.H(x) - self.hm) ** 2)
 
         if self.use_gprior:
-            val += 0.5*self.gw.dot((x[:self.k] - self.gm)**2)
+            val += 0.5 * self.gw.dot((x[: self.k] - self.gm) ** 2)
 
         if self.use_lprior:
-            val += self.lw.dot(x[self.k:])
+            val += self.lw.dot(x[self.k :])
 
         return val
 
@@ -302,7 +302,7 @@ class LimeTr:
 
         # residual and variance
         R = Y - F_beta
-        D = BDLMat(dvecs=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        D = BDLMat(dvecs=V, lmats=Z * np.sqrt(gamma), dsizes=self.n)
 
         # gradient for beta
         DR = D.invdot(R)
@@ -310,20 +310,19 @@ class LimeTr:
 
         # gradient for gamma
         DZ = D.invdot(Z)
-        g_gamma = 0.5*np.sum(Z*DZ, axis=0) - \
-            0.5*np.sum(
-                np.add.reduceat(DZ.T*R, self.idx_split, axis=1)**2,
-                axis=1)
+        g_gamma = 0.5 * np.sum(Z * DZ, axis=0) - 0.5 * np.sum(
+            np.add.reduceat(DZ.T * R, self.idx_split, axis=1) ** 2, axis=1
+        )
 
         g = np.hstack((g_beta, g_gamma))
 
         # add gradient from the regularizer
         if self.use_regularizer:
-            g += self.JH(x).T.dot((self.H(x) - self.hm)*self.hw)
+            g += self.JH(x).T.dot((self.H(x) - self.hm) * self.hw)
 
         # add gradient from the gprior
         if self.use_gprior:
-            g += (x[:self.k] - self.gm)*self.gw
+            g += (x[: self.k] - self.gm) * self.gw
 
         # add gradient from the lprior
         if self.use_lprior:
@@ -336,22 +335,22 @@ class LimeTr:
         _, JF_beta, _, Z, V = self._get_nll_components(beta)
 
         sqrt_gamma = np.sqrt(gamma)
-        d = BDLMat(dvecs=V, lmats=Z*np.sqrt(gamma), dsizes=self.n)
+        d = BDLMat(dvecs=V, lmats=Z * np.sqrt(gamma), dsizes=self.n)
 
         split_idx = np.cumsum(self.n)[:-1]
         v_study = np.split(V, split_idx)
         z_study = np.split(Z, split_idx, axis=0)
-        dlmats = [DLMat(v, z*sqrt_gamma) for v, z in zip(v_study, z_study)]
+        dlmats = [DLMat(v, z * sqrt_gamma) for v, z in zip(v_study, z_study)]
 
         beta_fisher = JF_beta.T.dot(d.invdot(JF_beta))
         gamma_fisher = np.zeros((self.k_gamma, self.k_gamma))
         for i, dlmat in enumerate(dlmats):
-            gamma_fisher += 0.5*(z_study[i].T.dot(dlmat.invdot(z_study[i])))**2
+            gamma_fisher += 0.5 * (z_study[i].T.dot(dlmat.invdot(z_study[i]))) ** 2
 
         hessian = block_diag(beta_fisher, gamma_fisher)
         if self.use_regularizer:
             JH = self.JH(x)
-            hessian += (JH.T*self.hw).dot(JH)
+            hessian += (JH.T * self.hw).dot(JH)
 
         if self.use_gprior:
             idx = np.arange(self.k)
@@ -367,35 +366,29 @@ class LimeTr:
         r = self.Y - self.F(self.beta)
         d = self.V + t
 
-        val = 0.5*np.sum(r**2*w/d)
-        val += 0.5*self.N*np.log(2.0*np.pi) + 0.5*w.dot(np.log(d))
+        val = 0.5 * np.sum(r**2 * w / d)
+        val += 0.5 * self.N * np.log(2.0 * np.pi) + 0.5 * w.dot(np.log(d))
 
         return val
 
     def gradient_trimming(self, w: NDArray) -> NDArray:
         t = (self.Z**2).dot(self.gamma)
-        r = (self.Y - self.F(self.beta))**2
+        r = (self.Y - self.F(self.beta)) ** 2
         d = self.V + t
 
-        g = 0.5*r/d
-        g += 0.5*np.log(d)
+        g = 0.5 * r / d
+        g += 0.5 * np.log(d)
 
         return g
 
-    def optimize(self,
-                 x0: Optional[NDArray] = None,
-                 options: Optional[dict] = None):
+    def optimize(self, x0: Optional[NDArray] = None, options: Optional[dict] = None):
         if x0 is None:
             x0 = np.hstack((self.beta, self.gamma))
             if self.use_lprior:
                 x0 = np.hstack((x0, np.zeros(self.k)))
         constraints = []
         if self.use_lprior or self.use_constraints:
-            constraints = [LinearConstraint(
-                self.jacobian(x0),
-                self.cl,
-                self.cu
-            )]
+            constraints = [LinearConstraint(self.jacobian(x0), self.cl, self.cu)]
         self.info = minimize(
             self.objective,
             x0,
@@ -404,20 +397,22 @@ class LimeTr:
             hess=self.hessian,
             constraints=constraints,
             bounds=self.uprior.T,
-            options=options
+            options=options,
         )
 
         self.soln = self.info.x
         self.beta, self.gamma = self._get_vars(self.soln)
 
-    def fit(self,
-            x0: Optional[NDArray] = None,
-            inner_options: Optional[dict] = None,
-            outer_verbose: bool = False,
-            outer_max_iter: int = 100,
-            outer_step_size: float = 1.0,
-            outer_tol: float = 1e-6,
-            normalize_trimming_grad: bool = False):
+    def fit(
+        self,
+        x0: Optional[NDArray] = None,
+        inner_options: Optional[dict] = None,
+        outer_verbose: bool = False,
+        outer_max_iter: int = 100,
+        outer_step_size: float = 1.0,
+        outer_tol: float = 1e-6,
+        normalize_trimming_grad: bool = False,
+    ):
 
         if not self.use_trimming:
             self.optimize(x0=x0, options=inner_options)
@@ -436,29 +431,29 @@ class LimeTr:
             if normalize_trimming_grad:
                 w_grad /= np.linalg.norm(w_grad)
             w_new = utils.proj_capped_simplex(
-                self.w - outer_step_size*w_grad,
+                self.w - outer_step_size * w_grad,
                 self.num_inliers,
-                active_id=self.active_trimming_id)
+                active_id=self.active_trimming_id,
+            )
 
-            err = np.linalg.norm(w_new - self.w)/outer_step_size
+            err = np.linalg.norm(w_new - self.w) / outer_step_size
             np.copyto(self.w, w_new)
 
             num_iter += 1
 
             if outer_verbose:
                 obj = self.objective_trimming(self.w)
-                print('iter %4d, obj %8.2e, err %8.2e' % (num_iter, obj, err))
+                print("iter %4d, obj %8.2e, err %8.2e" % (num_iter, obj, err))
 
             if num_iter >= outer_max_iter:
-                print('reach max outer iter')
+                print("reach max outer iter")
                 break
 
         return self.beta, self.gamma, self.w
 
-    def estimate_re(self,
-                    beta: NDArray = None,
-                    gamma: NDArray = None,
-                    use_gamma: bool = True) -> NDArray:
+    def estimate_re(
+        self, beta: NDArray = None, gamma: NDArray = None, use_gamma: bool = True
+    ) -> NDArray:
         beta = self.beta if beta is None else beta
         gamma = self.gamma if gamma is None else gamma
 
@@ -470,19 +465,19 @@ class LimeTr:
 
         u = []
         for i in range(self.m):
-            rhs = (z[i].T/v[i]).dot(r[i])
+            rhs = (z[i].T / v[i]).dot(r[i])
             if use_gamma:
-                q = (z[i].T/v[i]).dot(z[i])*gamma + np.identity(self.k_gamma)
-                u.append(gamma*np.linalg.inv(q).dot(rhs))
+                q = (z[i].T / v[i]).dot(z[i]) * gamma + np.identity(self.k_gamma)
+                u.append(gamma * np.linalg.inv(q).dot(rhs))
             else:
-                q = (z[i].T/v[i]).dot(z[i])
+                q = (z[i].T / v[i]).dot(z[i])
                 u.append(np.linalg.inv(q).dot(rhs))
 
         return np.vstack(u)
 
     def get_re_vcov(self):
         if self.soln is None:
-            print('Please fit the model first.')
+            print("Please fit the model first.")
             return None
 
         _, _, _, Z, V = self._get_nll_components(self.beta)
@@ -492,7 +487,7 @@ class LimeTr:
 
         vcov = []
         for i in range(self.m):
-            hessian = (z[i].T/v[i]).dot(z[i]) + np.diag(1.0/self.gamma)
+            hessian = (z[i].T / v[i]).dot(z[i]) + np.diag(1.0 / self.gamma)
             vcov.append(np.linalg.pinv(hessian))
 
         return vcov
@@ -502,14 +497,14 @@ class LimeTr:
         v = np.split(self.S**2, np.cumsum(self.n)[:-1])
         H = np.zeros((self.k_gamma, self.k_gamma))
         for i in range(self.m):
-            q = np.diag(v[i]) + (z[i]*gamma).dot(z[i].T)
+            q = np.diag(v[i]) + (z[i] * gamma).dot(z[i].T)
             q = z[i].T.dot(np.linalg.inv(q).dot(z[i]))
-            H += 0.5*(q**2)
+            H += 0.5 * (q**2)
         return H
 
     def sample_beta(self, size: int = 1) -> NDArray:
         hessian = self.hessian(self.soln)
-        beta_hessian = hessian[:self.k_beta, :self.k_beta]
+        beta_hessian = hessian[: self.k_beta, : self.k_beta]
         beta_vcov = np.linalg.inv(beta_hessian)
         return np.random.multivariate_normal(self.beta, beta_vcov, size=size)
 
@@ -520,8 +515,13 @@ def get_baseline_model(model: LimeTr):
     k_gamma = 1
     Y = model.Y.copy()
     intercept = np.ones((Y.size, 1))
-    def F(beta): return intercept.dot(beta)
-    def JF(beta): return intercept
+
+    def F(beta):
+        return intercept.dot(beta)
+
+    def JF(beta):
+        return intercept
+
     Z = intercept
     S = model.S.copy()
     w = model.w.copy()
@@ -536,51 +536,49 @@ def get_fe_pred(model: LimeTr):
 
 
 def get_re_pred(model: LimeTr):
-    re = model.estimateRE()
-    return np.sum(model.Z*np.repeat(re, model.n, axis=0), axis=1)
+    re = model.estimate_re()
+    return np.sum(model.Z * np.repeat(re, model.n, axis=0), axis=1)
 
 
 def get_varmat(model: LimeTr):
     S = model.S**model.w
-    Z = model.Z*np.sqrt(model.w)[:, None]
+    Z = model.Z * np.sqrt(model.w)[:, None]
     n = model.n
     gamma = model.gamma
-    return BDLMat(dvecs=S**2, lmats=Z*np.sqrt(gamma), dsizes=n)
+    return BDLMat(dvecs=S**2, lmats=Z * np.sqrt(gamma), dsizes=n)
 
 
 def get_marginal_rvar(model: LimeTr):
-    residual = (model.Y - get_fe_pred(model))*np.sqrt(model.w)
+    residual = (model.Y - get_fe_pred(model)) * np.sqrt(model.w)
     varmat = get_varmat(model)
-    return residual.dot(varmat.invdot(residual))/model.w.sum()
+    return residual.dot(varmat.invdot(residual)) / model.w.sum()
 
 
 def get_conditional_rvar(model: LimeTr):
-    residual = (model.Y - get_fe_pred(model) - get_re_pred(model))*np.sqrt(model.w)
-    varvec = (model.S**model.w)**2
-    return (residual/varvec).dot(residual)/model.w.sum()
+    residual = (model.Y - get_fe_pred(model) - get_re_pred(model)) * np.sqrt(model.w)
+    varvec = (model.S**model.w) ** 2
+    return (residual / varvec).dot(residual) / model.w.sum()
 
 
-def get_marginal_R2(model: LimeTr,
-                    baseline_model: LimeTr = None) -> float:
+def get_marginal_R2(model: LimeTr, baseline_model: LimeTr = None) -> float:
     if baseline_model is None:
         baseline_model = get_baseline_model(model)
 
-    return 1 - get_marginal_rvar(model)/get_marginal_rvar(baseline_model)
+    return 1 - get_marginal_rvar(model) / get_marginal_rvar(baseline_model)
 
 
-def get_conditional_R2(model: LimeTr,
-                       baseline_model: LimeTr = None):
+def get_conditional_R2(model: LimeTr, baseline_model: LimeTr = None):
     if baseline_model is None:
         baseline_model = get_baseline_model(model)
 
-    return 1 - get_conditional_rvar(model)/get_conditional_rvar(baseline_model)
+    return 1 - get_conditional_rvar(model) / get_conditional_rvar(baseline_model)
 
 
 def get_R2(model: LimeTr):
     baseline_model = get_baseline_model(model)
     return {
         "conditional_R2": get_conditional_R2(model, baseline_model),
-        "marginal_R2": get_marginal_R2(model, baseline_model)
+        "marginal_R2": get_marginal_R2(model, baseline_model),
     }
 
 
