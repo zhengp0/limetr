@@ -607,11 +607,9 @@ def get_degree_of_freedom(model: LimeTr):
     if c_mat_active.size == 0:
         return k
 
-    lb, ub = c_mat_active.min(axis=0), c_mat_active.max(axis=0)
-    lb[np.isclose(lb, 0.0)] = 0.0
-    ub[np.isclose(ub, 0.0)] = 0.0
+    _, s, _ = np.linalg.svd(c_mat_active)
 
-    return k - 0.5 * ((lb < 0) + (ub > 0)).sum()
+    return k - (s / s.max()).sum()
 
 
 def get_aic(model: LimeTr):
