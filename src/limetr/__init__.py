@@ -616,12 +616,12 @@ def get_degree_of_freedom(model: LimeTr):
 
 def get_aic(model: LimeTr):
     degree_of_freedom = get_degree_of_freedom(model)
-    return -2 * model.objective(model.soln) + 2 * degree_of_freedom
+    return 2 * model.objective(model.soln) + 2 * degree_of_freedom
 
 
 def get_bic(model: LimeTr):
     degree_of_freedom = get_degree_of_freedom(model)
     return (
-        -2 * model.objective(model.soln)
+        2 * model.objective(model.soln)
         + np.log(model.N * model.inlier_percentage) * degree_of_freedom
     )
